@@ -4,7 +4,7 @@
 (3)服务层：Service，核心的业务逻辑，调用Utils+DAO+Component，使用PO+DO+DTO三大模型数据，主要完成核心逻辑+事务+缓存+异常处理等等
 (3)通用工具层：Utils，工具类，这部分高度可重用，可静态也可非静态，一般无相关的模型数据，不过也可以定义在包内或者内部类形式定义其所需要的Model
 (4)组件层：Component,实际上也应该属于Service,不过功能应该是高度独立，所以独立出来（可选）,使用什么模型数据看情况
-(5)web层：Controller、Filter、Servlet等，,调用Services+Utils，完成相关的web相关功能，调用Service方法完成相关的权限控制，权限控制实际上是要在web层和Service层中一起做
+(5)web层：Controller、Listener、Filter、Servlet等，,调用Services+Utils，完成相关的web相关功能，调用Service方法完成相关的权限控制，权限控制实际上是要在web层和Service层中一起做
 (6)对外接口服务层：Rest接口、SOAP等RPC接口,调用Services+Utils，以DTO的形式对外提供接口
 (7)视图层：View，可以是MVC渲染的动态页面，也可以是SOA的静态页面，甚至可以是移动端和PC端页面，前者可以直接被DO渲染，后者使用接口层的DTO和DTO转换出来的VO或者PO
 2.模型数据
