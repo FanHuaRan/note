@@ -1,0 +1,183 @@
+spring mvc+rest异常处理方案
+1.自定义运行时异常+@ResponseStatus注解
+  控制器方法中抛出这种异常后会返回给客户端一个HTTP Status Code为xxx,含有reason信息的响应。
+   /**
+	 * 自定义运行时异常+@ResponseStatus注解
+	 * @author fhr
+	 * @since
+   */
+	@ResponseStatus(value=HttpStatus.NOT_FOUND, reason="No such Order")  // 404
+	public class OrderNotFoundException extends RuntimeException {
+		private static final long serialVersionUID = -3550674566942784892L;
+		//......
+	}
+	//控制器方法中直接抛出该异常
+	 throw new OrderNotFoundException();
+  此方法不太友好，搭配相关的404,500等页面使用较好，这种处理方案非全局异常处理，应该尽量避免使用此方案
+
+2.@ExceptionHandler注解
+  注意：@ExceptionHandler只能注解在方法上，非全局处理，如果要使用此方案可使用继承和接口默认实现
+    /**
+	 * 带异常处理的控制器基类 含有ExceptionHandler方法实现
+	 * @author fhr
+	 * @since
+	 */
+	public abstract class BaseController {
+		@ExceptionHandler(value=Exception.class)
+		@ResponseBody
+		public Object exceHandler(Exception exception){
+			//处理逻辑......
+			//返回给客户端数据
+			return null;
+		}
+	}
+    /**
+	 * 带异常处理默认实现的接口 含有ExceptionHandler方法实现
+	 * @author fhr
+	 * @since
+	 */
+	public interface DataExceptionSolver {
+		@ExceptionHandler(value=Exception.class)
+		@ResponseBody
+		default Object exceHandler(Exception e){
+			//处理逻辑......
+			//返回给客户端数据
+		}
+	}
+	此种处理方法要么使用继承，要么使用接口默认实现，不容易维护，具有极强的侵入性，虽然可以实现全局处理，不过也应该尽量避免
+3.使用加强Controller做全局异常处理：@ControllerAdvice 
+  注意：(1)@ControllerAdvice是spring3.2提供的新注解，意为控制器增强，可以实现对所有Controller的全局处理增强，该注解的类下面可以含有三种注解方法
+            @ModelAttribute:应用到所有@RequestMapping注解方法，在其执行之前把返回值放入Model
+            @InitBinder:应用到所有@RequestMapping注解方法，在其执行之前初始化数据绑定器
+            @ExceptionHandler:应用到所有@RequestMapping注解的方法，在其抛出异常后调用
+        (2)@ControllerAdvice不是@Controller的子类，因此扫描时需要另加指定
+	        <context:component-scan base-package="com.sishuok.es" use-default-filters="false">  
+		       <context:include-filter type="annotation" expression="org.springframework.stereotype.Controller"/>  
+		       <context:include-filter type="annotation" expression="org.springframework.web.bind.annotation.ControllerAdvice"/>  
+	        </context:component-scan> 
+	    (3)更多关于ControllerAdvise:http://jinnianshilongnian.iteye.com/blog/1866350
+  使用方法：
+   	/**
+	 * 增加Controlle实现全局异常处理
+	 * @author fhr
+	 * @since
+	 */
+	@ControllerAdvice
+	public class GlobalController {
+		@ExceptionHandler(value=Exception.class)
+		@ResponseBody
+		 Object exceHandler(Exception e){
+			//处理逻辑......
+			//返回给客户端数据
+			return null;
+		}
+	}
+4.使用全局异常解决器AbstractHandlerExceptionResolver
+	/**
+	 * 自定义全局异常处理解决器
+	 * @author fhr
+	 * @since
+	 */
+	public class MyExceptionResolver extends AbstractHandlerExceptionResolver {
+		/**
+		 * 发生未处理异常自动调用此方法
+		 */
+		@Override
+		protected ModelAndView doResolveException(HttpServletRequest request, HttpServletResponse response, Object handler,
+				Exception ex) {
+			//处理逻辑......
+			//返回给客户端数据
+			return null;
+		}
+	}
+	前端控制器xml中配置异常解决器Bean 
+     <bean id="exceptionResolver" class="com.fhr.springdemo.MyExceptionResolver"/>     
+    注意：
+    (1)AbstractHandlerExceptionResolver含有一个SimpleMappingExceptionResolver子类，在MVC模式业务不复杂可以直接使用
+    (2)此种处理方式是全局的，且无侵入性，优先使用
+5.使用开源框架(一般是通过AbstractHandlerExceptionResolver实现)
+  两个spring rest错误处理开源项目：
+  (1)https://github.com/jirutka/spring-rest-exception-handler 
+  (2)https://github.com/stormpath/spring-mvc-rest-exhandler
+
+总结：
+(1)异常处理优先使用全局异常处理，特别是AbstractHandlerExceptionResolver
+(2)异常处理需要区分MVC模式和Rest，一般分开处理，两个处理Bean，不过处理流程是一样的，就是返回信息有区别
+   mvc模式中一般需要返回错误页面+简易错误信息，实际上还是个页面渲染的过程
+   Rest一般需要xml或者json的详细错误信息，一般如下格式：
+   {
+	    "status": 422,
+	    "detail": "The content you've send contains 2 validation errors.",
+	    "errors": [{"field title must not be empty"}, { field quantity must be greater than zero"}]
+   }
+   更多错误消息定义格式：http://user.qzone.qq.com/834171100/blog/1498958545
+(3)全局异常处理应该使用自定义运行时异常(程序手动抛出)，其它异常的处理方法，以rest+AbstractHandlerExceptionResolver处理为例，eg:
+	/**
+	 * 使用系统自定义运行时异常
+	 * @author fhr
+	 * @since
+	 */
+	public class SystemException extends RuntimeException{
+		private static final long serialVersionUID = -8325378560582235878L;
+		//错误标识 与HttpCode一致
+		private final int code;
+		//detail就使用message字段
+		//分条错误信息
+		private final List<String> errors=new ArrayList<>();
+		public SystemException(int code) {
+			this(code, "");
+		}
+		public SystemException(int code,String detail,String...errs){
+			super(detail);
+			this.code = code;
+			for(String error:errs){
+				errors.add(error);
+			}
+		}
+		public int getCode() {
+			return code;
+		}
+		public List<String> getErrors() {
+			return errors;
+		}
+		public String getDetail(){
+			return getMessage();
+		}
+	}
+	 /**
+	 * 自定义全局异常处理
+	 * @author fhr
+	 * @since
+	 */
+	public class MyExceptionResolver extends AbstractHandlerExceptionResolver {
+		/**
+		 * 发生未处理异常自动调用此方法
+		 */
+		@Override
+		protected ModelAndView doResolveException(HttpServletRequest request, HttpServletResponse response, Object handler,
+				Exception ex) {
+			//两种异常分开处理
+			Object result=null;
+			if(ex instanceof SystemException){
+				result=handlerSystemException((SystemException)ex);
+			}else{
+				result=handlerOtherException(ex);
+			}
+			return null;
+		}
+		//处理自定义的SystemException，这种异常一般都是我们直接抛出的
+		Object handlerSystemException(SystemException systemException){
+			//处理逻辑 只需要根据SystemException构建一个错误返回数据就OK
+			return null;
+		}
+		//处理其它异常，这种异常一般都是意外的异常
+		Object handlerOtherException(Exception exception){
+			//处理逻辑 只需要根据SystemException构建一个错误返回数据就OK
+			return null;
+		}
+	}
+   (4)异常处理一定要区分MVC和Rest,另外可以充分发挥Spring的优势，尽量考虑完整并且提供xml的属性配置，极大限度的提高扩展性
+   (5)读读这两个框架spring-rest-exception-handler+spring-mvc-rest-exhandler会收获很多
+   (6)多读读：
+      [1]Restful API 中的错误处理：http://user.qzone.qq.com/834171100/blog/1498958545
+  
