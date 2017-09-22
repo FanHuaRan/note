@@ -1,0 +1,5 @@
+行锁，表锁，页级锁，意向锁，读锁，写锁，悲观锁，乐观锁，以及加锁的select sql方式
+
+一分钟教你知道乐观锁和悲观锁的区别：http://blog.csdn.net/hongchangfirst/article/details/26004335
+
+MySQL学习之——锁(行锁、表锁、页锁、乐观锁、悲观锁等)：http://blog.csdn.net/lishenglong666/article/details/53913126
