@@ -1,0 +1,27 @@
+IO概述
+Java IO即Java 输入输出，基本建立在java.io包当中
+在JDK1.4之后，为了提高IO的效率，Java又提供了一套新的IO，简称NIO。主要位于java.nio包当中(这儿不仅仅指网络通讯非阻塞IO),且原有的IO部分被NIO优化了。
+
+IO和NIO
+IO:面向流
+NIO:面向块
+
+IO的分类
+从是读媒介还是写媒介的维度看
+输入流：InputStream和Reader
+输出流：OutputStream和Writer
+从处理流的类型的维度上看，Java IO又可以分为：
+字节流：InputStream和OutputStream
+字符流：Reader和Writer
+
+IO总览
+
+
+每种IO的特性
+
+
+
+参考文章
+Java IO概述：http://blog.csdn.net/taiyangdao/article/details/51435700
+Java IO：http://blog.csdn.net/suifeng3051/article/details/48344587
+Java IO 概述(并发编程网)：http://ifeve.com/java-io-3/
