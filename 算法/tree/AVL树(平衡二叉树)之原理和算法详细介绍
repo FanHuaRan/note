@@ -1,0 +1,14 @@
+AVL树(平衡二叉树)之原理和算法详细介绍
+个人总结
+(1)AVL树是经过平衡的二叉排序树
+(2)AVL树的任意子树的高度相差<=1,所以AVL树是高度平衡的二叉树
+(3)相比较于红黑树，AVL树更加平衡，但是增删改节点时需要的操作也更多
+
+
+原文
+
+
+学习文章
+AVL树(一)之 图文解析 和 C语言的实现：http://www.cnblogs.com/skywang12345/p/3576969.html
+平衡二叉树,AVL树之图解篇：http://www.cnblogs.com/suimeng/p/4560056.html
+红黑树和AVL平衡树的区别:http://blog.csdn.net/marelin/article/details/39972435
