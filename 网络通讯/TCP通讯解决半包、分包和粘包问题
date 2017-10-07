@@ -1,0 +1,128 @@
+个人理解
+1.半包和粘包现象
+  [1]半包：发送端发送了数量比较大的数据，接收端读取该数据时,数据分批到达，造成发送端一次发送而服务端多次读取的现象。通常和网络路由的缓存大小有关系，一个数据段大小超过缓存大小，那么网络就会拆包发送。
+  [2]粘包：发送端发送了多次数据，接收端一次性读取了所有数据，造成客户端多次发送而服务端一次读取的现象；通常是网络流量优化引起，即网络把多个小的数据段集满达到一定的数据量，从而减少网络链路中的传输次数。
+  补充：分包不是问题，是服务端拆分粘包的处理手段
+2.半包和粘包现象是一对相反的问题：出现半包现象，那服务端就要组装数据，出现粘包现象，服务端就要拆分数据(也就是分包)。
+3.半包和粘包问题的解决不能只依靠服务端，需要服务端和客户端一起定义数据的编码和解码规则才能够解决，其本质上是网络数据的编码和解码问题。一般来说是客户端在写入数据段时控制编码，服务端接收数据时根据编码规则解码，难在服务端。
+4.三个比较常用的编码和解码方案
+  [1]数据段定长，即每个数据都是固定字节。
+  [2]头部定长，其中包含数据正文的长度
+  [3]分隔符，每个数据段结尾带一个特殊字符或者换行符，如#
+  2最普遍，其次是3,1最少
+5.客户端发送的每段数据我们称之为帧
+6.Netty预置的服务端解码器
+  DelimiterBasedFrameDecoder 使用任何由用户提供的分隔符来提取帧的通用解码器 分隔符在构造函数中指定
+  LineBasedFrameDecoder 提取由行尾符（\n 或者\r\n）分隔的帧的解码器。这个解码器比DelimiterBasedFrameDecoder 更快
+  FixedLengthFrameDecoder 提取定长帧 长度在构造函数中指定
+  LengthFieldBasedFrameDecoder 根据编码进帧头部中的长度值提取帧；该字段的偏移量以及长度在构造函数中指定
+原文
+地址：http://blog.csdn.net/sweettool/article/details/77018506
+
+TCP作为常用的网络传输协议，数据流解析是网络应用开发人员永远绕不开的一个问题。
+TCP数据传输是以无边界的数据流传输形式，所谓无边界是指数据发送端发送的字节数，在数据接收端接受时并不一定等于发送的字节数，可能会出现粘包情况。
+一、TCP粘包情况：
+1. 发送端发送了数量比较的数据，接收端读取数据时候数据分批到达，造成一次发送多次读取；通常网络路由的缓存大小有关系，一个数据段大小超过缓存大小，那么就要拆包发送。
+2. 发送端发送了几次数据，接收端一次性读取了所有数据，造成多次发送一次读取；通常是网络流量优化，把多个小的数据段集满达到一定的数据量，从而减少网络链路中的传输次数。
+本地图片，请重新上传
+
+TCP粘包的解决方案有很多种方法，最简单的一种就是发送的数据协议定义发送的数据包的结构：
+1. 数据头：数据包的大小，固定长度。
+2. 数据内容：数据内容，长度为数据头定义的长度大小。
+实际操作如下：
+a）发送端：先发送数据包的大小，再发送数据内容。
+b）接收端：先解析本次数据包的大小N，在读取N个字节，这N个字节就是一个完整的数据内容。
+具体流程如下：
+本地图片，请重新上传
+
+实现源码
+/**  * read size of len from sock into buf.  */  bool readPack(int sock, char* buf, size_t len) {      if (NULL == buf || len < 1) {          return false;      }      memset(buf, 0, len); // only reset buffer len.      ssize_t read_len = 0, readsum = 0;      do {          read_len = read(sock, buf + readsum, len - readsum);          if (-1 == read_len) { // ignore error case              return false;          }          printf("receive data: %s\n", buf + readsum);          readsum += read_len;      } while (readsum < len && 0 != read_len);      return true;  }   
+二、测试用例介绍
+本篇提供的demo主要流程如下：
+1. 客户端负责模拟发送数据，服务端负责接受数据，处理粘包问题
+a）emulate_subpackage
+模拟情况1，一个长数据经过多次才到达目的地，
+在客户端字符串“This is a test case for client send subpackage data. data is not send complete at once.”每次只发送6个字节长度。服务端要把字符串集满才能处理数据（打印字符串）
+b）emulate_adheringpackage
+模拟情况2，多个数据在一次性到达目的地
+在客户端将字符串“Hello I'm lucky. Nice too me you”切成三个数据段（都包含数据头和数据内容），然后一次性发送，服务端读取数据时对三个数据段逐个处理。
+三、源码实现
+server.cpp 
+#include <cstdio>#include <cstdlib>#include <cstring>#include <errno.h>#include <sys/socket.h>#include <sys/types.h>#include <arpa/inet.h>#include <unistd.h>void newclient(int sock);bool readPack(int sock, char* buf, size_t len);void safe_close(int &sock);int main(int argc, char *argv[]) {int sockfd = -1, newsockfd = -1;socklen_t c = 0;struct sockaddr_in serv_addr, cli_addr;// Create socketsockfd = socket(AF_INET, SOCK_STREAM, 0);if (-1 == sockfd) {printf("new socket failed. errno: %d, error: %s\n", errno, strerror(errno));exit(-1);}// Prepare the sockaddr_in structureserv_addr.sin_family = AF_INET;serv_addr.sin_addr.s_addr = INADDR_ANY;serv_addr.sin_port = htons(7890);// bindif (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {printf("bind failed. errno: %d, error: %s\n", errno, strerror(errno));exit(-1);}// listenlisten(sockfd, 5);printf("listening...\n");// accept new connection.c = sizeof(struct sockaddr_in);int i = 0;while (i++ < 3) {printf("waiting for new socket accept.\n");    newsockfd = accept(sockfd, (struct sockaddr*)&cli_addr, (socklen_t*)&c);    if (newsockfd < 0) {    printf("accept connect failed. errno: %d, error: %s\n", errno, strerror(errno));    safe_close(sockfd);    exit(-1);    }pid_t pid = fork();if (0 == pid) {newclient(newsockfd);        safe_close(sockfd);break;} else if (pid > 0) {safe_close(newsockfd);}}safe_close(sockfd);return 0;}void newclient(int sock) {printf("newclient sock fd: %d\n", sock);int datasize = 0;const int HEAD_SIZE = 9;char buf[512] = {0};while (true) {memset(buf, 0, sizeof(buf));    if (! readPack(sock, buf, HEAD_SIZE)) {       printf("read head buffer failed.\n");       safe_close(sock);       return;    }    datasize = atoi(buf);    printf("data size: %s, value:%d\n", buf, datasize);    memset(buf, 0, sizeof(buf));    if (! readPack(sock, buf, datasize)) {       printf("read data buffer failed\n");       safe_close(sock);       return;    }    printf("data size: %d, text: %s\n", datasize, buf);if (0 == strcmp(buf, "exit")) {break;}}memset(buf, 0, sizeof(buf));snprintf(buf, sizeof(buf), "from server read complete.");write(sock, buf, strlen(buf) + 1);printf("newclient sockfd: %d, finish.\n", sock);safe_close(sock);}void safe_close(int &sock) {if (sock > 0) {close(sock);sock = -1;}}/** * read size of len from sock into buf. */bool readPack(int sock, char* buf, size_t len) {if (NULL == buf || len < 1) {return false;}memset(buf, 0, len); // only reset buffer len.ssize_t read_len = 0, readsum = 0;do {read_len = read(sock, buf + readsum, len - readsum);if (-1 == read_len) { // ignore error casereturn false;}printf("receive data: %s\n", buf + readsum);readsum += read_len;} while (readsum < len && 0 != read_len);return true;}
+  
+client.cpp
+
+四、测试结果
+编译及运行
+$ make
+g++ -o server.o server.cpp
+g++ -o client.o client.cpp
+客户端模拟发送数据
+$ ./client.o 
+emulate_subpackage...
+send data size: 00000088
+send data: This i
+send data: s a te
+send data: st cas
+send data: e for
+send data: client
+send data: send
+send data: subpac
+send data: kage d
+send data: ata. d
+send data: ata is
+send data: not s
+send data: end co
+send data: mplete
+send data: at on
+send data: ce.
+emulate_adheringpackage...
+send complete.
+receive data: from server read complete.
+client finish.
+
+服务端模拟接受数据
+$ ./server.o 
+listening...
+waiting for new socket accept.
+waiting for new socket accept.
+newclient sock fd: 4
+receive data: 00000088
+data size: 00000088, value:88
+receive data: This i
+receive data: s a te
+receive data: st cas
+receive data: e for
+receive data: client
+receive data: send
+receive data: subpac
+receive data: kage d
+receive data: ata. d
+receive data: ata is
+receive data: not s
+receive data: end co
+receive data: mplete
+receive data: at on
+receive data: ce.
+data size: 88, text: This is a test case for client send subpackage data. data is not send complete at once.
+receive data: 00000007
+data size: 00000007, value:7
+receive data: Hello
+data size: 7, text: Hello
+receive data: 00000011
+data size: 00000011, value:11
+receive data: I'm lucky.
+data size: 11, text: I'm lucky.
+receive data: 00000016
+data size: 00000016, value:16
+receive data: Nice too me you
+data size: 16, text: Nice too me you
+receive data: 00000005
+data size: 00000005, value:5
+receive data: exit
+data size: 5, text: exit
+newclient sockfd: 4, finish.#include <cstdio>#include <cstdlib>#include <cstring>#include <time.h>#include <errno.h>#include <sys/socket.h>#include <arpa/inet.h>#include <unistd.h>void safe_close(int &sock);void emulate_subpackage(int sock);void emulate_adheringpackage(int sock);int main(int argc, char *argv[]) {char buf[128] = {0};int sockfd = -1;struct sockaddr_in serv_addr;// Create socksockfd = socket(AF_INET, SOCK_STREAM, 0);if (-1 == sockfd) {printf("new socket failed. errno: %d, error: %s\n", errno, strerror(errno));exit(-1);}serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");serv_addr.sin_family = AF_INET;serv_addr.sin_port = htons(7890);// Connect to remote serverif (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {printf("connection failed. errno: %d, error: %s\n", errno, strerror(errno));exit(-1);}emulate_subpackage(sockfd);emulate_adheringpackage(sockfd);const int HEAD_SIZE = 9;const char temp[] = "exit";memset(buf, 0, sizeof(buf));snprintf(buf, sizeof(buf), "%0.*zu", HEAD_SIZE - 1, sizeof(temp));write(sockfd, buf, HEAD_SIZE);write(sockfd, temp, sizeof(temp));printf("send complete.\n");memset(buf, 0, sizeof(buf));read(sockfd, buf, sizeof(buf));printf("receive data: %s\n", buf);printf("client finish.\n");safe_close(sockfd);return 0;}void safe_close(int &sock) {if (sock > 0) {close(sock);sock = -1;}}/** * emulate socket data write multi part. */void emulate_subpackage(int sock) {printf("emulate_subpackage...\n");char text[] = "This is a test case for client send subpackage data. data is not send complete at once.";const size_t TEXTSIZE = sizeof(text);ssize_t len = 0;size_t sendsize = 0, sendsum = 0;const int HEAD_SIZE = 9;char buf[64] = {0};snprintf(buf, HEAD_SIZE, "%08zu", TEXTSIZE);write(sock, buf, HEAD_SIZE);printf("send data size: %s\n", buf);do {sendsize = 6;if (sendsum + sendsize > TEXTSIZE) {sendsize = TEXTSIZE - sendsum;}    len = write(sock, text + sendsum, sendsize);if (-1 == len) {printf("send data failed. errno: %d, error: %s\n", errno, strerror(errno));return;}memset(buf, 0, sizeof(buf));snprintf(buf, len + 1, text + sendsum);printf("send data: %s\n", buf);sendsum += len;sleep(1);} while (sendsum < TEXTSIZE && 0 != len);}/** * emualte socket data write adhering. */void emulate_adheringpackage(int sock) {printf("emulate_adheringpackage...\n");const int HEAD_SIZE = 9;char buf[1024] = {0};char text[128] = {0};char *pstart = buf;// append textmemset(text, 0, sizeof(text));snprintf(text, sizeof(text), "Hello ");snprintf(pstart, HEAD_SIZE, "%08zu", strlen(text) + 1);pstart += HEAD_SIZE;snprintf(pstart, strlen(text) + 1, "%s", text);pstart += strlen(text) + 1;// append textmemset(text, 0, sizeof(text));snprintf(text, sizeof(text), "I'm lucky.");snprintf(pstart, HEAD_SIZE, "%08zu", strlen(text) + 1);pstart += HEAD_SIZE;snprintf(pstart, strlen(text) + 1, "%s", text);pstart += strlen(text) + 1;// append textmemset(text, 0, sizeof(text));snprintf(text, sizeof(text), "Nice too me you");snprintf(pstart, HEAD_SIZE, "%08zu", strlen(text) + 1);pstart += HEAD_SIZE;snprintf(pstart, strlen(text) + 1, "%s", text);pstart += strlen(text) + 1;write(sock, buf, pstart - buf);} 
+
+学习文章
+socket的半包，粘包与分包的问题：http://blog.csdn.net/sunmenggmail/article/details/38952131
+TCP网络通讯如何解决分包粘包问题：http://blog.csdn.net/sweettool/article/details/77018506
