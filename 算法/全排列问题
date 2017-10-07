@@ -1,0 +1,162 @@
+全排列问题介绍
+       全排列就是对于一个具有n个元素的数组/字符串，求出里面的n个元素/字符的所有组合顺序，在没有重复元素的情况下，排列结果是n!种。此算法可以用于暴力解决很多问题。此问题不可以通过嵌套循环完成，因为n不是常量，这是一个难点。
+递归解法
+     递归解法就是每次假设当前数组的index索引前的元素已经排列好，求index及之后的元素的排列，此种解法要注意去重！
+     实现代码：
+     /**
+ * 全排列的递归实现
+ * 参考:http://www.cnblogs.com/nowornever-L/p/6008954.html
+ * 全排列去重：http://blog.csdn.net/jiejinquanil/article/details/52164086
+ * @author fhr
+ * @since
+ */
+public class FullPermByRec implements IFullPerm{
+
+@Override
+public List<Integer[]> perm(int[] array) {
+if(array==null){
+return null;
+}
+List<Integer[]> results=new LinkedList<>();
+permCore(array, 0, results);
+return results;
+}
+/*
+* 每次都假设当前数组的index索引以前的元素已经排列好
+*/
+private void permCore(int[] array,  int index,List<Integer[]> results){
+int arrayLength=array.length;
+//已经排列了所有元素 保存排列结果
+   if(index == arrayLength){
+   Integer[]currentPerm=convert(array);
+results.add(currentPerm);
+}
+// 依次全排列index元素
+for (int i = index; i < arrayLength; i++) {
+if (!cmp(array, index, i)) {//如果需要去重
+// 把每个位置上的元素与index索引对换
+swap(array, i, index);
+// 当前index暂时排好 继续排index后面的元素
+permCore(array, index + 1, results);
+// 恢复现场
+swap(array, i, index);
+}
+}
+}
+//交换两索引上的元素
+private void swap(int []array,int x,int y){
+if(x!=y){
+int tmp=array[x];
+array[x]=array[y];
+array[y]=tmp;
+}
+}
+//检测index且index和i之间有没有与i处元素相同的存在
+private boolean cmp(int []array,int index,int i)  {  
+   for(int j = index;j<i;j++)  
+       if(array[j ]==array[i]){  
+           return true;  
+       }
+   return false;  
+}  
+//基本int类型数组转为封装类型
+private Integer[] convert(int []array){
+int arrayLength=array.length;
+Integer[]currentPerm=new Integer[arrayLength];
+    for(int i=0;i<arrayLength;i++){
+    currentPerm[i]=array[i];
+    }
+    return currentPerm;
+}
+}
+非递归解法
+全排列非递归算法一共有四种：字典序法, 递增进位制数法, 递减进位制数法, 邻位对换法.
+字典序法
+这个算法要求传入序列必须已经按从小到大的规律排过序. 否则它不能生成正确的全排列. 至于为什么用这个方法就可以生成全排列, 我的知识有限, 证明不了, 只有拿来用了再说. 假定序列为a1,a2.... an (n > 0) ,如123456789, 它从123456789开始, 一直到987654321结束, 中间有n个值, 寻找这n个值需要做n趟下面的操作:
+1. 找出比右边数字小的第一个数 找到这个数后, 把它的位置记下来. 设这个位置为pos_left;如果找不到, 就说明排列完成了.
+2. 从右到左寻找第一个大于pos_left所在值的数, 设为pos_right.
+3. 交换a[pos_left]与a[pos_right]的值.
+4. 逆转a[pos_left+1]到a[n]之间的值.
+到此, 寻找一个排列的步骤完成.
+继续！
+    实现代码：
+    /**
+ * 基于字典序的全排列
+ * @author fhr
+ * @since
+ */
+public class FullPermByAlphabetOrder implements IFullPerm {
+
+//实际上就是逐步将一个从小到大的排列转换为一个从大到小的排列
+@Override
+public List<Integer[]> perm(int[] array) {
+List<Integer[]> results = new LinkedList<>();
+if (array != null && array.length > 0) {
+// 先进行排序
+Arrays.sort(array);
+results.add(convert(array));// 保存第一个
+int arrayLen = array.length;
+while (true) {
+// 从后向前找到第一个比右边元素的小的左边数
+int postLeft = -1;
+for (int i = arrayLen - 1; i > 0; i--) {
+if (array[i - 1] < array[i]) {
+postLeft = i - 1;
+break;
+}
+}
+// 如果未找到则证明 已经是从大到小的排列  排列结束
+if (postLeft < 0) {
+break;
+}
+// 从后向前找到第一个比array[postLeft]大的元素
+int postRight = -1;
+for (int i = arrayLen - 1; i > postLeft; i--) {
+if (array[i] > array[postLeft]) {
+postRight = i;
+break;
+}
+}
+// 交换postLeft和postRight元素
+swap(array, postLeft, postRight);
+//反转postLeft之后的元素
+reverse(array, postLeft+1, arrayLen-1);
+//保存当前结果
+results.add(convert(array));
+}
+}
+return results;
+}
+
+// 交换两索引上的元素
+private void swap(int[] array, int x, int y) {
+if (x != y) {
+int tmp = array[x];
+array[x] = array[y];
+array[y] = tmp;
+}
+}
+
+// 反转left到right之间的元素
+public void reverse(int[] arr, int left, int right) {
+int mid = (right - left) >> 1;
+for (int i = 0; i <=mid; i++) {
+swap(arr, left + i, right - i);
+}
+}
+
+// 基本int类型数组转为封装类型
+private Integer[] convert(int[] array) {
+int arrayLength = array.length;
+Integer[] currentPerm = new Integer[arrayLength];
+for (int i = 0; i < arrayLength; i++) {
+currentPerm[i] = array[i];
+}
+return currentPerm;
+}
+}
+参考文章
+求数组的全排列的非递归算法：http://m.chinadmd.com/file/cwviaiisseupixiwssez3soz_1.html
+求数组的全排列：https://www.nowcoder.com/questionTerminal/fe6b651b66ae47d7acce78ffdd9a96c7
+全排列算法:http://www.cnblogs.com/nowornever-L/p/6008954.html
+全排列去重：http://blog.csdn.net/jiejinquanil/article/details/52164086

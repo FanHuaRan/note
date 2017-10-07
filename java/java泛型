@@ -1,0 +1,65 @@
+个人理解
+1.java当中的泛型是一种伪泛型，是通过擦除上界实现的，仅仅有编译期的检查，所以运行时可以通过反射破坏泛型
+   <T>擦除后变为Object  可变性:不变，哪怕是 A<泛型上界> 对象引用=new A<具体类型>()也会编译错误
+   <? extends A>擦除后变为A  可变性:协变 子转为基， List<? extends Number> list = new ArrayList<Integer>(); 
+   <? super A>擦除后变为Object 可变性:逆变 基转为子   List<? super Number> list = new ArrayList<Object>();
+   上述擦除规则叫做保留上界。
+2.遵守擦除上界原则，泛型可以间接支持强制转换，如下：
+    List<String> list = new ArrayList<String>();
+	Object result=list;
+    List<Object> list2=(List<Object>) result;
+2.java当中的泛型支持泛型约束<? extends A>和<? super A>
+3.普通泛型是不变的，不过使用了2中的泛型约束就可以支持逆变或者协变，注:变量声明中的"?"只有占位的功能，没有可变性一说
+4.java当中类泛型只能作用在非静态字段或者方法上，静态方法不能使用类的泛型，静态字段不能使用泛型（这是由于伪泛型机制决定的  ，因为类的静态字段只有一个，使用泛型了就有多个，这种只有真泛型能够做到）
+5.泛型类   实例化对象的时候显式指明泛型的具体类型，如果声明对象时的泛型不写，那么缺省就是泛型上界类型，等价于"?"
+  泛型方法 调用方法的时候隐式指明泛型的具体类型。
+5.java的泛型约束不只可以在泛型类或者泛型方法定义时指定，也可以在泛型对象声明时指定，而且很常用！
+  eg:List<? extends Number> list=new ArrayList<Integer>();
+  注意：这种情况没有泛型擦除的物理实现，不过具有遵守泛型擦除的可变性，只有类定义时的泛型和泛型约束才发生泛型擦除
+7."T"和"?"的区别
+  "T"是定义类或方法时声明的东西，当使用一个带泛型T的类或方法时，T应该用一个实际的数据类型替换它 注意：使用泛型方法不显式指明类型(这儿说的泛型方法是单独声明泛型的方法，不是使用只使用泛型类的方法)
+  "?"是变量声明时使用的东西,更像是一个占位符，会将泛型对象中的泛型元素会暂时被当做该泛型元素的上界来看(参考第一条)，常常用于我们不关心T的具体类型时使用，任何泛型对象都可以?声明。
+  有两种情况可以使用"?"：
+  [1]使用过程中仅用到Object的方法，跟T的具体类型无关，像equals()等等，因为任何一个泛型肯定是Object的子类；
+  [2]使用过程中不依赖于泛型。最典型的是Class<?>，因为Class类的方法大多跟泛型无关。
+  注意：
+  //不加泛型 等价于使用了?占位符 Model<?> model=new Model<Integer>(12);
+  Model model=new Model<Integer>(12);
+8.一个demo：
+	//定义一个泛型类 带约束
+	public class Model<T extends Serializable> {
+		//定义一个泛型静态方法，方法泛型用在参数上面才有意义
+		static <T> void  testStaticMethod(T arg){
+			//nothing
+		}
+		//定义一个泛型成员方法 使用自己的V泛型 又使用类泛型T
+	  <V extends Number> void  testMemberMethod(V arg1,T arg2){
+			
+	  }
+	  //泛型value
+		private T value;
+		public Model(T value){
+			this.value=value;
+		}
+		public static void main(String[]args){
+			//直接泛型
+			Model<Integer>model1=new Model<Integer>(1);
+			//声明时继续带泛型约束
+			Model<? extends Number> model2=new Model<Float>(12F);
+			Model<?> model3=new Model<Float>(12F);
+			//不加泛型 等价于使用了?占位符 		Model<?> model=new Model<Integer>(12);
+			Model model=new Model<Integer>(12);
+			//model3.value 可以使用上界的元素类型 这儿是Serializable
+			//调用泛型方法 不指明泛型 根据参数自动确定
+			testStaticMethod(12);
+			//调用泛型方法
+			model1.testMemberMethod(12, 12);
+		}
+	}
+学习文章
+1关于java的泛型推荐Effective java 第五章
+2.关于java逆变和协变：http://user.qzone.qq.com/834171100/blog/1502348323
+3.Java中的泛型方法：http://www.cnblogs.com/iyangyuan/archive/2013/04/09/3011274.html
+4.Java泛型－类型擦除：https://zm10.sm-tc.cn/?src=l4uLj8XQ0J2TkJjRnIybkdGRmovQnJ6Wl56WlZaekZjQno2LlpyTmtCbmouelpOM0MnLz8zMy8Y%3D&uid=e505317e23bdc036302e04be15bb2f03&hid=0fdbc78034afe05c02cb063025b6048c&pos=1&cid=9&time=1507222255202&from=click&restype=1&pagetype=0000000002000408&bu=web&query=java%E6%B3%9B%E5%9E%8B%E6%93%A6%E9%99%A4&mode=&v=1&uc_param_str=dnntnwvepffrgibijbprsvdsdichei
+原文
+地址：http://blog.csdn.net/yi_afly/article/details/52002594 ;
