@@ -5,7 +5,7 @@ Java Version SE 8
 		Lambda表达式
 		Pipelines和Streams
 		Date和Time API
-		Default方法
+		java接口方法默认实现，接口公共静态方法
 		Type注解
 		Nashhorn JavaScript引擎
 		并发计数器
