@@ -1,0 +1,114 @@
+Hibernate面试小问题
+
+一.hibernate缓存
+   1.Hibernate缓存分为两级，一个是session，一个是sessionfactory,前者无法卸载，后者默认关闭（可装配）
+   2.session的缓存可以使用session.clear()，evcit()或者关闭session进行清空，当然最好是每次使用了seesion后立即关闭。
+   more: http://user.qzone.qq.com/834171100/blog/1488418744
+
+二.hibernate数据的四种加载方式
+   1.即时加载（Immediate Loading）
+   当实体加载完成后，立即加载与实体相关联的数据。即当实体加载完成后，Hibernate自动立即读取与实体相关联的数据，并且填充到实体对应的属性中。这种加载通常有多条select语句，即select实体数据后，同时select实体相关联的数据。 
+   2.延迟加载（Lazy Loading） 
+   实体加载时，其关联数据并不是立即读取，而是当关联数据第一次被访问时再进行读取，这种加载方式在第一次访问关联数据时，必须在同一个session中，否则会报session已关闭错误。 
+   延迟加载通过在实体的hbm文件中的对应属性中设定lazy="true"实现。Hibernate3默认的加载方式是延迟加载。即默认lazy="true"，主要用于one-to-many场合。 
+   3.预先加载（Eager Loading） 
+   预先加载时，实体及关联对象同时读取，与即时加载类似，但是预先加载是使用"outer-join"通过一条select语句同时读取。 
+   注意：当实体间关联比较复杂时，比如多层关联，Hibernate生成的"outer join SQL"可能过于复杂，此时可以通过设定全局变量（hibernate.max_fetch_depth）限定join的层次（一般设定为5层）。 
+   4.批量加载（Batch Loading） 
+   对于即时和延迟加载，可以采用批量加载进行优化。 
+   批量加载就是通过批量提交多个限定条件，一次多个限定条件的数据读取。同时在实体映射文件中的class节点，通过配置"batch-size"参数打开批量加载机制，并限定每次批量加载数据的数量,一般来说该值<10较合理.
+
+三.hibernate延迟加载原理
+   使用CGLIB构建实体类的动态代理，当关联属性的访问方法第一次调用时才访问数据库
+   当实体类为final或者关联属性的get方法为final时，丧失延迟加载特性
+
+四.get、load方式的区别
+   get为即时加载
+   load为延迟加载、预先加载或者批量加载
+
+五.hibernate数据对象的状态：
+   1.瞬时状态（Transient）
+     当我们通过Java的new关键字来生成一个实体对象时，这时这个实体对象就处于自由状态
+     瞬时对象特点：
+	     (1)不和 Session实例关联
+	     (2)在数据库中没有和瞬时对象关联的记录
+   2.持久状态（Persistent）
+     持久化对象就是已经被保存进数据库的实体对象，并且这个实体对象现在还处于Hibernate的缓存管理之中。这时对该实体对象的任何修改，都会在清理缓存时同步到数据库中。持久的实例在数据库中有对应的记录，并拥有一个持久化标识 (identifier).
+     如何得到持久对象：
+		 (1)通过Session的save()、saveOrUpdate()、update()等方法可把一个瞬时对象与数据库相关联，这个瞬时对象就成为持久化对象。
+         (2)使用find(),get(),load() 和 iterater() 等方法查询到的数据对象，将成为持久化对象。
+ 	 持久化对象特点：
+ 	 	 (1)和Session实例关联
+		 (2)在数据库中有和持久对象关联的记录
+   3.脱管状态（Detached）
+     当一个持久化对象脱离开Hibernate的缓存管理后，它就处于游离状态，游离对象和自由对象的最大区别在于，游离对象在数据库中可能还存在一条与它对应的记录，只是现在这个游离对象脱离了Hibernate的缓存管理，而自由对象不会在数据库中出现与它对应的数据记录。
+     脱管对象特点：
+		 (1)本质上和瞬时对象相同
+		 (2)只是比爱瞬时对象多了一个数据库记录标识值 id.
+	 持久对象转为脱管对象：
+	     当执行 close() 或 clear(),evict() 之后，持久对象会变为脱管对象。
+	 瞬时对象转为持久对象：
+	     通过 Session 的 update(),saveOrUpdate() 和 lock() 等方法，把脱管对象变为持久对象。
+
+     more:http://blog.csdn.net/fg2006/article/details/6436517/
+
+六.save、persist、savaOrUpdate、update方法
+   save和persist将会引发SQL的INSERT
+   delete会引发SQL的DELETE，
+   update和merge会引发SQL的UPDATE。
+   saveOrUpdate或者replicate会引发SQL的INSERT或者UPDATE
+   注意：对持久化（persistent）实例的修改在刷新提交的时候会被检测到，它也会引起SQL UPDATE。
+   save的作用是把一个瞬时态的对象保存
+   update是把一个脱管状态或瞬时态的对象（一定要和一个记录对应）更新到数据库
+   saveOrUpdate是把一个处于托管状态或瞬时态的对象进行更新或者保存，如果对象没有持久化标识（identifier）属性，对其调用save() ，否则update() 这个对象
+   more: http://www.blogjava.net/TiGERTiAN/archive/2008/10/25/236519.html
+
+七.save和update区别
+   save的作用是把一个新的对象保存
+   update是把一个脱管状态的对象或自由态对象（一定要和一个记录对应）更新到数据库
+
+八.update和saveOrUpdate区别
+   saveOrUpdate基本上就是合成了save和update,而update只是update;引用hibernatereference中的一段话来解释他们的使用场合和区别
+	通常下面的场景会使用update()或saveOrUpdate()： 
+		程序在第一个session中加载对象,接着把session关闭 
+		该对象被传递到表现层 
+		对象发生了一些改动 
+		该对象被返回到业务逻辑层最终到持久层 
+		程序创建第二个session调用第二个session的update()方法持久这些改动
+    saveOrUpdate如果对象没有持久化标识(identifier)属性，对其调用save() ，否则update() 这个对象
+
+九.persist和save区别
+   persist把一个瞬态的实例持久化，但是并"不保证"标识符(identifier主键对应的属性)被立刻填入到持久化实例中，标识符的填入可能被推迟到flush的时候。
+   save, 把一个瞬态的实例持久化标识符，及时的产生,它要返回标识符，所以它会立即执行Sql insert
+
+十.saveOrUpdate,merge区别
+  如果session中存在相同持久化标识(identifier)的实例，用户给出的对象覆盖session已有的持久实例 
+  (1)当我们使用update的时候，执行完成后，会抛出异常 
+  (2)但当我们使用merge的时候，把处理自由态的po对象A的属性copy到session当中处于持久态的po的属性中，执行完成后原来是持久状态还是持久态，而我们提供的A还是自由态
+
+十一.flush和update区别
+   update操作的是在自由态或脱管状态(因session的关闭而处于脱管状态)的对象//updateSQL
+   flush是操作的在持久状态的对象。默认情况下，一个持久状态的对象的改动（包含set容器）是不需要update的，只要你更改了对象的值，等待hibernate flush就自动更新或保存到数据库了。hibernate flush发生在以下几种情况中：
+	1.调用某些查询的和手动flush(),session的关闭、SessionFactory关闭结合get()一个对象，把对象的属性进行改变,把资源关闭。
+    2.transaction commit的时候（包含了flush）
+
+十二.lock和update区别
+   update是把一个已经更改过的脱管状态的对象变成持久状态
+   lock是把一个没有更改过的脱管状态的对象变成持久状态(针对的是因Session的关闭而处于脱管状态的po对象(2)，不能针对因delete而处于脱管状态的po对象)
+	对应更改一个记录的内容，两个的操作不同：
+	update的操作步骤是：
+		(1)属性改动后的脱管的对象的修改->调用update
+	lock的操作步骤是：
+		(2)调用lock把未修改的对象从脱管状态变成持久状态-->更改持久状态的对象的内容-->等待flush或者手动flush
+十三.clear和evcit的区别
+	clear完整的清除session缓存
+	evcit(obj)把某个持久化对象从session的缓存中清空。
+    
+十四.Session和SessionFactory的线程安全问题
+   Session非线程安全，SessionFactory线程安全且一个数据库只需要一个
+
+十五.session重建了关联关系却并没有同数据库进行同步和更新　　 
+   进行同步和更新需要使用事务提交
+
+十六.为什么实体类需要提供无参构造函数
+   因为实体对象通过反射进行创建，所以需要提供无参构造函数满足框架需要

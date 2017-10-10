@@ -37,7 +37,7 @@ Java Version SE 6
 		继承Web Services；
 		做了很多优化。
 
-Java Version SE 5.0
+Java Version SE 5
 	开发代号为Tiger（老虎），于2004-09-30发行。
 	引入的新特性包括:
 		引入泛型；
@@ -47,6 +47,7 @@ Java Version SE 5.0
 		可变参数；
 		静态引入；
 		元数据（注解）；
+		java.util.concurrent并发包(AQS+CSA+一系列并发容器)
 		引入Instrumentation。
 
 J2SE Version 1.4
