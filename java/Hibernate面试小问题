@@ -47,7 +47,7 @@ Hibernate面试小问题
 		 (2)只是比爱瞬时对象多了一个数据库记录标识值 id.
 	 持久对象转为脱管对象：
 	     当执行 close() 或 clear(),evict() 之后，持久对象会变为脱管对象。
-	 瞬时对象转为持久对象：
+	脱管对象转为持久对象：
 	     通过 Session 的 update(),saveOrUpdate() 和 lock() 等方法，把脱管对象变为持久对象。
 
      more:http://blog.csdn.net/fg2006/article/details/6436517/
