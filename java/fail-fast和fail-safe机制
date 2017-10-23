@@ -1,0 +1,146 @@
+详细讨论这两种机制的区别之前，首先得先了解并发修改。
+一.什么是并发修改？
+当一个或多个线程正在遍历一个集合Collection，此时另一个线程修改了这个集合的内容（添加，删除或者修改）。这就是并发修改
+二.fail-fast机制?
+1.什么是fail-fast机制
+fail-fast机制在遍历一个集合时，当集合结构被修改，会抛出ConcurrentModificationException。
+fail-fast会在以下两种情况下抛出ConcurrentModificationException
+（1）单线程环境
+集合被创建后，在遍历它的过程中修改了结构。
+注意：remove()方法会让expectModcount和modcount 相等，所以是不会抛出这个异常。
+（2）多线程环境
+当一个线程在遍历这个集合，而另一个线程对这个集合的结构进行了修改。
+2.fail-fast机制是如何检测的？
+迭代器在遍历过程中是直接访问内部数据的，因此内部的数据在遍历的过程中无法被修改。为了保证不被修改，迭代器内部维护了一个标记 “mode” ，当集合结构改变（添加删除或者修改），标记"mode"会被修改，而迭代器每次的hasNext()和next()方法都会检查该"mode"是否被改变，当检测到被修改时，抛出ConcurrentModificationException
+3.看看fail-fast的典型实现：ArrayList的迭代器
+private class Itr implements Iterator<E> {  
+        int cursor;  
+        int lastRet = -1;  
+        int expectedModCount = ArrayList.this.modCount;  
+  
+        public boolean hasNext() {  
+            return (this.cursor != ArrayList.this.size);  
+        }  
+  
+        public E next() {  
+            checkForComodification();  
+            /** 省略此处代码 */  
+        }  
+  
+        public void remove() {  
+            if (this.lastRet < 0)  
+                throw new IllegalStateException();  
+            checkForComodification();  
+            /** 省略此处代码 */  
+        }  
+  
+        final void checkForComodification() {  
+            if (ArrayList.this.modCount == this.expectedModCount)  
+                return;  
+            throw new ConcurrentModificationException();  
+        }  
+    }  
+fail-safe机制
+1.什么是fail-safe机制
+  fail-fast机制是指在遍历一个集合时，当集合结构被修改，会抛出ConcurrentModificationException。
+2.fail-safe机制的原理
+  fail-safe机制中任何对集合结构的修改都会在一个复制的集合上进行修改，因此不会抛出ConcurrentModificationException
+ fail-safe机制有两个问题
+ （1）需要复制集合，产生大量的无效对象，开销大
+ （2）无法保证读取的数据是目前原始数据结构中的数据。
+3.迭代器的快速失败行为无法得到保证，因为一般来说，不可能对是否出现不同步并发修改做出任何硬性保证。快速失败迭代器会尽最大努力抛出 ConcurrentModificationException。因此，为提高这类迭代器的正确性而编写一个依赖于此异常的程序是错误的做法：迭代器的快速失败行为应该仅用于检测 bug。
+4.看看fail-safe的典型实现：CopyOnWriteArray的迭代器
+  static final class COWIterator<E> implements ListIterator<E> {
+        /** Snapshot of the array */
+        private final Object[] snapshot;
+        /** Index of element to be returned by subsequent call to next.  */
+        private int cursor;
+
+        private COWIterator(Object[] elements, int initialCursor) {
+            cursor = initialCursor;
+            snapshot = elements;
+        }
+
+        public boolean hasNext() {
+            return cursor < snapshot.length;
+        }
+
+        public boolean hasPrevious() {
+            return cursor > 0;
+        }
+
+        @SuppressWarnings("unchecked")
+        public E next() {
+            if (! hasNext())
+                throw new NoSuchElementException();
+            return (E) snapshot[cursor++];
+        }
+
+        @SuppressWarnings("unchecked")
+        public E previous() {
+            if (! hasPrevious())
+                throw new NoSuchElementException();
+            return (E) snapshot[--cursor];
+        }
+
+        public int nextIndex() {
+            return cursor;
+        }
+
+        public int previousIndex() {
+            return cursor-1;
+        }
+
+        /**
+         * Not supported. Always throws UnsupportedOperationException.
+         * @throws UnsupportedOperationException always; {@code remove}
+         *         is not supported by this iterator.
+         */
+        public void remove() {
+            throw new UnsupportedOperationException();
+        }
+
+        /**
+         * Not supported. Always throws UnsupportedOperationException.
+         * @throws UnsupportedOperationException always; {@code set}
+         *         is not supported by this iterator.
+         */
+        public void set(E e) {
+            throw new UnsupportedOperationException();
+        }
+
+        /**
+         * Not supported. Always throws UnsupportedOperationException.
+         * @throws UnsupportedOperationException always; {@code add}
+         *         is not supported by this iterator.
+         */
+        public void add(E e) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void forEachRemaining(Consumer<? super E> action) {
+            Objects.requireNonNull(action);
+            Object[] elements = snapshot;
+            final int size = elements.length;
+            for (int i = cursor; i < size; i++) {
+                @SuppressWarnings("unchecked") E e = (E) elements[i];
+                action.accept(e);
+            }
+            cursor = size;
+        }
+    }
+7.
+6. fail-fast和 fail-safe 的区别
+
+ 	                                    Fail-Fast-Iterator	Fail-Safe-Iterator
+ Throw ConcurrentModification Exception	Yes	                 No
+ Clone object	                        No	                 Yes
+ Memory Overhead	                    No	                 Yes
+ Examples	          HashMap,Vector,ArrayList,HashSet	CopyOnWriteArrayList,ConcurrentHashMap
+简单记忆：并发包以外的容器都是fail-fast 并发包以内的容器都是fail-safe
+
+参考文章：
+ Java提高篇（三四）-----fail-fast机制：http://blog.csdn.net/chenssy/article/details/38151189
+ 快速失败(fail-fast)和安全失败(fail-safe)的区别：http://www.cnblogs.com/shamo89/p/6685216.html
+ java中fail-fast 和 fail-safe的区别：http://blog.csdn.net/ch717828/article/details/46892051
