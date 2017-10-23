@@ -11,7 +11,7 @@ spring事务详解
    public interface TransactionDefinition { 
 		int getPropagationBehavior();//返回事务的传播行为。 Spring特有
 		int getIsolationLevel();//返回事务的隔离级别，与数据库事务隔离级别对应
-		int getTimeout();//事务必须在多少秒内完成。 
+		int getTimeout();//事务必须在多少秒内完成，缺省-1 
 		boolean isReadOnly();//事务是否只读，事务管理器能够根据这个返回值进行优化 
     }
 (8)Spring事务的5个隔离级别

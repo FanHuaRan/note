@@ -1,0 +1,25 @@
+java中HashMap和ConcurrentHashMap的版本演化和实现差异
+HashMap的版本演化
+java7及之前
+实现无非是链表法，即数组+链表
+一维是一个数组，数组当中的每一个元素是一个链表，每个链表当中存储了hash冲突的所有元素，因此当hash冲突严重时，还是要使用线性吃查找，查找效率降低为O(n)
+java8及之后
+实现也是链表法，不过是数组+链表+红黑树。
+当数组元素上存储的元素超过8时就会自动转换为红黑树
+当数组元素上存储的元素降低为8时就会自动转换回链表
+这种设计保证了在hash冲突严重时也有极高的查找效率
+
+ConcurrentHashMap的版本演化
+java7及之前
+存储规则同java7的hashmap
+并发问题的解决是使用分段锁：
+简单来说就是有一个和HashMap的一维数组一样大的Segments数组，里面的每个元素都是Segment对象（ReentrantLock的一个实现），每个Segment保护存储在该位置上的元素。
+复杂的说是首先将数据分成一段一段的存储，然后给每一段数据配一把锁，当一个线程占用锁访问其中一个段数据的时候，其他段的数据也能被其他线程访问。有些方法需要跨段，比如size()和containsValue()，它们可能需要锁定整个表而而不仅仅是某个段，这需要按顺序锁定所有段，操作完毕后，又按顺序释放所有段的锁。这里“按顺序”是很重要的，否则极有可能出现死锁，
+java8之后
+存储规则同java8的hashmap
+并发问题的解决使用CAS+Node锁(非常细腻化)
+参考文章
+jdk1.8 HashMap实现数组+链表/红黑树：http://www.cnblogs.com/todayjust/p/5876533.html
+HashMap 在 JDK 1.8 后新增的红黑树结构：http://blog.csdn.net/u011240877/article/details/53358305
+java7的ConcurrentHashMap原理分析：http://www.cnblogs.com/ITtangtang/p/3948786.html
+Java8—ConcurrentHashMap分析：http://blog.csdn.net/u012834750/article/details/71536618?locationNum=15&fps=1
