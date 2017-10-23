@@ -1,24 +1,23 @@
-spring事务详解
 个人理解
-(1)无论是什么事务，最终一定会调用数据库事务，事务底层机制是有数据库管理系统实现的
+(1)无论是什么事务，最终一定会调用数据库事务，事务底层机制是通过数据库管理系统实现的
 (2)Spring对事务的支持提供了编程式事务和声明式事务(声明式事务又包括xml和注解式)，所以共三种事务配置方式
 (3)Spring对事务的支持是通过AOP实现的
 (4)Spring事务说到底还是通过jdbc调用了数据库事务，事务的周期是一个Session的，也就是一个Connecion,因此Spring事务是必须用建立在一个Connection的事务周期之内，所以我们在使用Spring事务的时候，一定要使用Spring对各种持久化框架的支持进行DAO的编写，关键是TransactionManager+连接池+各种Template,Template在获取连接的时候，如果使用了spring事务，那么事务范围内的操作都会获取到一个Connecion
 (5)Spring事务使用事务管理器时，需要根据使用的DAO的持久化方案选择合适的管理器，比如使用HibernateSupprot时，必须使用HibernateTransactionManager，而不能使用DataSourceTransactionManager
 (6)附上各种事务管理器的使用场景
-
+ 
 (7)Spring事务定义接口
    public interface TransactionDefinition { 
-		int getPropagationBehavior();//返回事务的传播行为。 Spring特有
-		int getIsolationLevel();//返回事务的隔离级别，与数据库事务隔离级别对应
+		int getPropagationBehavior();//返回事务的传播行为，是Spring特有的事务特性，缺省PROPAGATION_REQUIRED
+		int getIsolationLevel();//返回事务的隔离级别，与数据库事务隔离级别对应，缺省数据库的默认隔离级别
 		int getTimeout();//事务必须在多少秒内完成，缺省-1 
-		boolean isReadOnly();//事务是否只读，事务管理器能够根据这个返回值进行优化 
+		boolean isReadOnly();//事务是否只读，事务管理器能够根据这个返回值进行优化,缺省false
     }
 (8)Spring事务的5个隔离级别
    ISOLATION_DEFAULT 这是一个PlatfromTransactionManager默认的隔离级别，使用数据库默认的事务隔离级别.另外四个与JDBC（实际是数据库）的隔离级别相对应；
-   ISOLATION_READ_UNCOMMITTED 这是事务最低的隔离级别，它充许别外一个事务可以看到这个事务未提交的数据。这种隔离级别会产生脏读，不可重复读和幻像读。
-   ISOLATION_READ_COMMITTED  保证一个事务修改的数据提交后才能被另外一个事务读取。另外一个事务不能读取该事务未提交的数据。这种事务隔离级别可以避免脏读出现，但是可能会出现不可重复读和幻像读。
-   ISOLATION_REPEATABLE_READ  这种事务隔离级别可以防止脏读，不可重复读。但是可能出现幻像读。它除了保证一个事务不能读取另一个事务未提交的数据外，还保证了避免下面的情况产生(不可重复读)。
+   ISOLATION_READ_UNCOMMITTED 这是事务最低的隔离级别，它充许别外一个事务可以看到这个事务未提交的数据。这种隔离级别会产生脏读，不可重复读，幻像读和丢失更新。
+   ISOLATION_READ_COMMITTED  保证一个事务修改的数据提交后才能被另外一个事务读取。另外一个事务不能读取该事务未提交的数据。这种事务隔离级别可以避免脏读出现，但是可能会出现不可重复读，幻像读和丢失更新。
+   ISOLATION_REPEATABLE_READ  这种事务隔离级别可以防止脏读，不可重复读。但是可能出现幻读和丢失更新。它除了保证一个事务不能读取另一个事务未提交的数据外，还保证了避免下面的情况产生(不可重复读)。
    ISOLATION_SERIALIZABLE 这是花费最高代价但是最可靠的事务隔离级别。事务被处理为顺序执行。除了防止脏读，不可重复读外，还避免了幻像读和更新丢失
 (9)Spring事务的7个传播级别
    [1]PROPAGATION_REQUIRED 如果存在一个事务，则支持当前事务。如果没有事务则开启一个新的事务。
@@ -28,10 +27,14 @@ spring事务详解
    [5]PROPAGATION_NOT_SUPPORTED  总是非事务地执行，并挂起任何存在的事务。使用PROPAGATION_NOT_SUPPORTED,也需要使用JtaTransactionManager作为事务管理器。
    [6]PROPAGATION_NEVER 总是非事务地执行，如果存在一个活动事务，则抛出异常；
    [7]PROPAGATION_NESTED如果一个活动的事务存在，则运行在一个嵌套的事务中.如果没有活动事务,则按TransactionDefinition.PROPAGATION_REQUIRED属性执行。这是一个嵌套事务,使用JDBC3.0驱动时,仅仅支持DataSourceTransactionManager作为事务管理器。需要JDBC驱动的java.sql.Savepoint类。有一些JTA的事务管理器实现可能也提供了同样的功能。使用PROPAGATION_NESTED，还需要把PlatformTransactionManager的nestedTransactionAllowed属性设为true;而nestedTransactionAllowed属性值默认为false;
-	嵌套事务一个非常重要的概念就是内层事务依赖于外层事务。外层事务失败时，会回滚内层事务所做的动作。而内层事务操作失败并不会引起外层事务的回滚。
+	 注意：嵌套事务一个非常重要的概念就是内层事务依赖于外层事务。外层事务失败时，会回滚内层事务所做的动作。而内层事务操作失败并不会引起外层事务的回滚。
 (10)Spring事务的只读属性
    "只读事务"并不是一个强制选项，它只是一个"暗示"，提示数据库驱动程序和数据库系统这个事务并不包含更改数据的操作，那么JDBC驱动程序和数据库就有可能根据这种情况对该事务进行一些特定的优化，比方说不安排相应的数据库锁，以减轻事务对数据库的压力，毕竟事务也是要消耗数据库的资源的。
-(11)以spring+hibenate+注解配置事务进行示范
+(11)关于事务超时时间
+   事务超时时间并不是数据库事务的特性，因此并不是每个数据库都支持数据库超时。
+   以直接使用Jdbc为例，spring中的事务超时时间=事务方法开始到最后一个Statement创建时时间 + 最后一个Statement的执行时超时时间（即其queryTimeout）。
+   当使用默认超时时间(-1)将会默认数据库事务系统支持的超时时间，如果事务系统不支持则直接无超时时间。
+(12)以spring+hibenate+注解配置事务进行示范
 	applicationContext.xml配置细节：
    	<!-- 用于Hibernate的C3P0连接池 -->
 	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
@@ -423,3 +426,4 @@ PROPAGATION_REQUIRED应该是我们首先的事务传播行为。它能够满足
   http://www.iteye.com/problems/20505
   http://blog.csdn.net/zbw18297786698/article/details/52064641
 5.Spring事务异常回滚，捕获异常不抛出就不会回滚：http://blog.csdn.net/yipanbo/article/details/46048413
+6.Spring事务超时时间可能存在的错误认识：http://jinnianshilongnian.iteye.com/blog/1986023

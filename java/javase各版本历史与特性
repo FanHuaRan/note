@@ -12,7 +12,9 @@ Java Version SE 8
 		Parallel操作
 		移除PermGen Error
 		TLS SNI
-
+		将HashMap及ConcurrentHashMap的实现优化为数组+链表+红黑树
+		摈弃ConcurrentHashMap的分段锁保护策略，使用CAS+Node锁提高并发性
+        
 Java Version SE 7
 	开发代号是Dolphin（海豚），于2011-07-28发行。
 	引入的新特性包括：
