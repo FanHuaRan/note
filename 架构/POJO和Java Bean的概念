@@ -1,0 +1,27 @@
+一.POJO
+POJO的英文名称“Plain Ordinary Java Object”，即普通java对象，Martin Fowler的解释是“Plain Old Java Object”，即纯洁老式的java对象，不过普遍使用普通java对象来称呼
+POJO主要用来指代那些没用遵从特定规则的Java对象模型，约定或框架如EJB的Java对象.
+一个理想的POJO是一个不受任何限制的Java对象（除了Java语言规范）。
+一个POJO不应该是：
+   扩展预定框架的类，如：public class Foo extends javax.servlet.http.HttpServlet { ... 
+   实现预定框架的接口，如：public class Bar implements javax.ejb.EntityBean { ...
+   包含预定框架的注解(可以放宽要求)，如： @javax.ejb.Entity public class Baz{ ...
+   注意：
+   1.因为技术上的困难及其他原因，许多兼容POJO风格的软件产品或框架事实上仍然要求使用预定的标注，譬如用于更方便的持久化
+   2.这个预定框架是指非java语言规范围内的，而属于特别框架的。所以pojo可以实现序列化接口，克隆接口等
+POJO概念的提出是由于早期EJB2.0的EntityBean,SessionBean,MessageBean非常繁杂，过度依赖框架的接口和类，导致了开发任务的繁杂和框架耦合度而提出来的，这也是POJO的狭义认识，广义认识就是满足上面几个要求的java对象（其不过度依赖于特定框架）
+POJO现在已经延伸为一种非侵入性代名词，也就是说：选择技术框架或开发框架，不依赖于框架，要实现这种目的，需要该框架通过DI依赖注入 AOP等等技术才能实现。
+
+二.java Bean
+JavaBean是一种JAVA语言写成的可重用组件。它的方法命名，构造及行为必须符合特定的约定：
+  1.这个类必须有一个公共的缺省构造函数。
+  2.这个类的属性使用getter和setter来访问，其他方法遵从标准命名规范。
+  3.这个类应是可序列化的。 
+因为这些要求主要是靠约定而不是靠实现接口，所以许多开发者把JavaBean看作遵从特定命名约定的POJO。
+注意：
+ 1.当一个POjO可序列化，有一个无参的构造函数，使用getter和setter方法来访问属性时，他就是一个JavaBean。
+ 2.spring bean并不要求可序列化，且不一定需要有无参构造方法
+
+三.参考文章
+Pojo和JavaBean的区别(转载):http://www.cnblogs.com/zhwl/p/3175306.html
+POJO和JavaBean的区别:http://blog.csdn.net/jack_cs/article/details/48373867
