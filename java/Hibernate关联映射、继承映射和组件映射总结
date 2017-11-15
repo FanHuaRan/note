@@ -1,0 +1,194 @@
+一.关联映射
+   包含一对多、多对一、一对一和多对多四种关联映射
+   一对多映射
+	<class name="Address">
+	    <id name="id" column="addressId">
+	        <generator class="native"/>
+	    </id>
+	    <set name="people" inverse="true">
+	        <key column="addressId"/>
+	        <one-to-many class="Person"/>
+	    </set>
+	</class>
+   多对一映射
+   <class name="Person" table="person">
+    <id name="id" >
+        <generator class="native"/>
+    </id>
+    <many-to-one name="address"
+        column="addressId"
+        not-null="true"/>
+	</class>
+   一对一映射
+	<class name="Address">
+	    <id name="id" column="addressId">
+	        <generator class="native"/>
+	    </id>
+	    <one-to-one name="person"
+	        property-ref="address"/>
+	</class>
+   多对多映射
+   <class name="Student">
+    <id name="id" column="studentId">
+        <generator class="native"/>
+    </id>
+    <set name="courses" table="StudentCourse">
+        <key column="studentId"/>
+        <many-to-many column="courseId"
+        class="Course"/>
+    </set>
+	</class>
+	<class name="Course">
+	    <id name="id" column="courseId">
+	        <generator class="native"/>
+	    </id>
+	    <set name="students" inverse="true" table="StudentCourse">
+	        <key column="courseId"/>
+	        <many-to-many column="studentId"
+	        class="Student"/>
+	    </set>
+	</class>
+  总结：
+  1.关联映射一般会有级联相关应用，级联会提高开发效率，但是会降低运行效率，
+  2.关联映射一般会有延迟加载，但是延迟加载会造成session无法及时关闭，所以一般不使用延迟加载
+  3.关联映射可能会造成1+n问题！
+  4.如果两个model有双向关联，序列化时会造成递归而栈溢出，解决方法一般是不使用延迟加载，或者严格分层VO,DIO,DO/BO,PO
+  5.many-to-many会引入一张关系中间表，而这张中间表一般是不会通过实体类暴露出来的，提高了开发效率，但是会降低运行效率。1+n问题！，所以一般自己写hql解决这个问题，或者暴露中间表，然后对分别两个表使用one-to-one进行关联
+二.继承映射
+   包含三种实现方式：
+   1.每棵类继承树一个表：整个类继承提醒一张表，表内包含所有继承体系中涵盖了的字段，再加一个字段用于区分具体的表
+   2.每个类一张表：父类一张表，子类各一张表，父类表中有公共字段，子类表中有个性字段+一个指向父类表的外键
+   3.每个具体类一张表：每个子类一张表，父类如果不是抽象类也会有自己的表，每张表都有自己所有的属性字段
+   示范：
+   //父类
+   public class Animal {  
+    private int id;  
+    private String name;  
+    private String sex;  
+    ......
+   }  
+   //pig子类
+   public class Pig extends Animal{  
+    private int weight;  
+    ......  
+   }  
+   //bird子类
+   public class Bird extends Animal{  
+    private int height;  
+    ...... 
+   }  
+   每棵类继承树一个表的配置方式
+	   配置文件：
+	   <hibernate-mapping package="com.ssh.hibernate">  
+	    <class name="Animal">  
+	        <id name="id">  
+	            <generator class="native"/>  
+	        </id>  
+	        <discriminator column="type" type="string"></discriminator>  
+	        <property name="name"/>  
+	        <property name="sex"/>          
+	        <subclass name="Pig" discriminator-value="Pig">  
+	            <property name="weight"></property>               
+	        </subclass>  
+	        <subclass name="Bird" discriminator-value="Bird">  
+	            <property name="height"></property>               
+	        </subclass>          
+	    </class>  
+	   </hibernate-mapping>
+	   数据库表形态：
+	   一张表：id name sex weight height type
+	每个类一张表的配置方式
+	    配置文件：
+	    <hibernate-mapping package="com.ssh.hibernate">  
+		    <class name="Animal">  
+		        <id name="id">  
+		            <generator class="native"/>  
+		        </id>  
+		        <property name="name"/>  
+		        <property name="sex"/>  
+		        <joined-subclass name="Pig" table="t_pig">  
+		            <key column="pid" />  
+		            <property name="weight"/>  
+		        </joined-subclass>  
+		        <joined-subclass name="Bird" table="t_bird">  
+		            <key column="bid"/>  
+		            <property name="height"/>  
+		        </joined-subclass>  
+		    </class>  
+	    </hibernate-mapping>  
+	    数据库表形态：
+	    父表：id name sex
+	    pig表：id weight
+	    bird表：id height
+	    三个表的id都是统一的，pig表和bird表既是关于父表外键，又是自己的主键
+	每个具体类一张表
+		配置文件：
+		<hibernate-mapping package="com.ssh.hibernate">  
+		    <class name="Animal" abstract="true">  
+		        <id name="id">  
+		            <generator class="uuid"/>  
+		        </id>  
+		        <property name="name"/>  
+		        <property name="sex"/>  
+		        <union-subclass name="Pig" table="t_pig">  
+		            <property name="weight"/>  
+		        </union-subclass>  
+		        <union-subclass name="Bird" table="t_bird">  
+		            <property name="height"/>  
+		        </union-subclass>  
+		    </class>  
+		</hibernate-mapping>  
+		数据库表形态：
+		pig:id name sex weight
+		bird:id name sex height
+		注意：1.这种方式的主键最好是uuid,保证表之间主键的唯一性，但非强制
+			  2.用abstract属性表示父类Animal为抽象类，这样Animal就不会映射成表了
+  总结：
+   第一种方式（每颗类继承树一个表）：可以把多个类放在一张表中，但是粒度比较粗，有冗余字段；但又是因为多个类的相关记录都存放在一张表中，查询时不用关联，因此效率较高， 适用于经常进行查操作且子类数量较多的情况
+   第二种方式（每个类一张表）：优点是粒度较细，条理清楚，没有冗余;缺点是查询时需要关联表，插入时也要执行多个insert语句,效率差，适用于效率要求不高且继承程度不深的情况。
+   第三种方式（每个具体类一张表）：优点是粒度较细，条理清楚，效率也较高，缺点是有冗余字段。基本适用于各种情况
+
+三.组件映射
+   Component映射类似于one-to-one,不过只能从父实体到componet，而且compnent没有自己的组件，完全可以认为是父实体将自己的一部分属性独立了出来，这种设计可以让我们的设计粒度更高，复用性更强。
+   示范：
+    /*
+	 * 地址信息类
+	 */
+	public class EmpHomeAddress {
+	    private String ehomestreet;
+	    private String ehomecity;
+	    private String ehomeprovince;
+	    private String ehomezipcode;
+	    private EmpInfo empinfo;
+	    ......
+	}
+	/*
+	 * 员工类
+	 */
+	public class EmpInfo {
+	    private Integer eid;
+	    private String ename;
+	    private EmpHomeAddress ehome;
+	    ......
+	}
+	<!--EmpInfo.hbm.xml映射文件 EmpHomeAddress不需要单独的配置文件-->
+	<hibernate-mapping package="cn.entity">
+	    <class name="EmpInfo" table="empinfo">
+	        <id name="eid" column="eid">
+	            <generator class="native"></generator>
+	        </id>
+	         <property name="ename" column="ENAME" type="string"></property>
+	         <component name="ehome" class="EmpHomeAddress">
+	            <parent name="empinfo"/>
+	            <property name="ehomestreet" column="EHOMESTREET" type="string"></property>
+	            <property name="ehomecity" column="EHOMECITY" type="string"></property>
+	            <property name="ehomeprovince" column="EHOMEPROVINCE" type="string"></property>
+	            <property name="ehomezipcode" column="EHOMEZIPCODE" type="string"></property>
+	         </component>
+	    </class>
+	</hibernate-mapping>
+    数据库表形态：没什么特别的，只是EmpHomeAddress多了一个指向EmpInfo的外键EID
+四.参考文章
+1.【Hibernate框架】三种继承映射：https://www.cnblogs.com/DoubleEggs/p/6243238.html
+2. Hibernate组件映射：https://www.cnblogs.com/jingpeipei/p/5842980.html
+3.Hibernate的七种映射关系之七种关联映射（一）：https://www.cnblogs.com/jyh317/p/3691842.html（作者逻辑有点混乱）
