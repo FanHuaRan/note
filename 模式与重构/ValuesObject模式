@@ -1,0 +1,24 @@
+什么是ValuesObject?
+    ValuesObject就是我们在程序设计中为了应对复杂情况或者数据传输而设计的只含有不变的值的数据模型，其主要用于数据库动态查询，
+减少数据传送次数、提高可读性和可维护性等，DTO是ValuesObject的一种
+
+ValuesObject的特性
+	1.只含有值，没有复杂行为
+	2.值是不可变的比如Java中的String, BigDecimal, BigInteger都是ValueObject，而StringBuffer就不是。
+
+ValuesObject的作用
+    1.封装动态的对象，（非entity,非DO等），如数据库跨表查询结果
+    2.减少网络数据传输次数
+    3.提高代码可读性和可维护性
+
+ValuesObject的设计
+	1.尽量贴紧具体需求设计
+	2.数据可以尽量扁平化
+	
+
+ValuesObject的示范
+
+
+学习文章：
+什么是ValueObject （VO 模式）：http://blog.csdn.net/dac55300424/article/details/17533761
+【设计优化】- 正确使用 Value Object模式：http://blog.csdn.net/zq602316498/article/details/39016353
