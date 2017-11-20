@@ -1,18 +1,626 @@
-背景
-数据库访问基本上在每个系统中都是必需的功能，复杂数据库访问的模块我们称为DAO，虽然DAO会与具体的数据库表/实体打交道，不够其实DAO在每个系统当中都是高度可重用的，因为这部分并没有牵扯到具体的业务逻辑，所以在此根据最近的收获一并整理和设计。
+基本知识
+数据库访问基本上在每个系统中都是必需的功能，
+几个概念如下：
+1.DAO:数据访问对象，主要负责数据库访问的模块
+2.Entity:实体对象，与数据库的一条记录相对应
+3.ValuesObject:只含有值的对象，Dto和Entity都属于ValuesObject,ValuesObject在数据访问当中常常用来替代Map来存储一条查询记录
+数据库访问虽然已经设计了具体的数据表，不过在每个系统当中都是高度可重用的，因为这部分并没有牵扯到具体的业务逻辑，所以在此根据最近的收获一并整理和设计。
 
 如何设计
+可以参考spring data，因为其是对于java的orm之上的进一步封装，提供了良好的Dao架构。
+在具体设计当中，我们可以利用泛型+反射两大语言特性最大化的介绍DAO的工作量。
+一般设计:
+	一张数据库表对应一个Entity,一个Entity对应一个包含增删改查操作的Dao,有时还会对每个dao抽象一个接口以提高隔离性，甚至还会封装dao的基类以提供公用逻辑
+	这种设计的坏处：
+	1.代码重复量高，违反DRY原则
+	2.类的数量巨大，几百张数据库表就有几百个Dao
+	3.无法解决负责查询的问题，跨表复杂查询是无法用entity存储结果的，这部分的处理往往是由开发人员自己决定
+优化的设计：
+	1.提供一个顶级的Entity泛型接口，该接口不与具体数据访问框架相耦合，里面包含了对泛型类的增删改查和sql操作接口（这是由于每个orm都提供了增删改查方式，且都支持sql）
+	  提供一个顶级的动态查询和复杂的Dao接口，该接口不与具体数据访问框架相耦合，里面只包含了以map、array、valuesobject存储查询结果的查询接口和sql操作接口
+	2.针对于具体orm框架，提供一个含有其框架特性的Entity泛型接口的子泛型接口
+	  针对于具体orm框架，提供一个含有其框架特性的动态查询和复杂的Dao接口的子接口
+	  实现上述两个接口：
+	  从而我们得到了两个具体的操作组件：
+	  第一个可以以泛型的方式支持每一类型实体的操作处理，我们无需为具体数据表提供一个dao实现（不使用orm的情况可能还是需要每个都写一哦变）
+	  第二个可以支持任意类型的查询和操作，提供扩展性
+	3.对于包含特殊需求的entity访问的dao,我们可以扩展上面（这种情况比较少见）
 
-
+动态查询问题的处理
+	1.动态查询并不属于任何具体的entitydao，所以必须独立出来，所以上面把复杂查询等操作封装到了一个单独的组件中
+	2.动态查询的结果可以通过array存储、map存储、对象存储（valuesobject),推荐使用对象存储，这种对象的定位是valuesobject
 
 示范
+	/**
+	 * 动态复杂的数据库访问接口,后面加分页
+	 * created on Nov 17, 2017
+	 * @author evanf
+	 *
+	 */
+	public interface IDynamicComplexDao {
+		/**
+		 * 通过sql查询单个记录，以字段名作为key的map作为返回记录的载体
+		 * @param sql
+		 * @param params
+		 * @return
+		 */
+		Map<String, Object> getAliasMapBySql(String sql,Object ...params); 
+		
+		/**
+		 * 通过sql查询单个记录，以顺序index作为key的map作为返回记录的载体
+		 * @param sql
+		 * @param params
+		 * @return
+		 */
+		Map<Integer, Object> getMapBySql(String sql,Object ...params);
+		
+		/**
+		 * 通过sql查询单个记录，以数组作为返回记录的载体
+		 * @param sql
+		 * @param params
+		 * @return
+		 */
+		Object[] getArrayBySql(String sql,Object ...params);
+		
+		/**
+		 * 通过sql查询单个记录，以值对象作为返回记录的载体
+		 * @param cls
+		 * @param sql
+		 * @param params
+		 * @return
+		 */
+		<T> T  getValueObjectBySql(Class<T> cls,String sql,Object ...params);
+		
+		/**
+		 * 通过sql查询多个记录，以字段名作为key的map作为返回记录的载体
+		 * @param sql
+		 * @param params
+		 * @return
+		 */
+		List<Map<String, Object>> getListAliasMapBySql(String sql,Object ...params);
+		
+		/**
+		 * 通过sql查询多个记录，以顺序index作为key的map作为返回记录的载体
+		 * @param sql
+		 * @param params
+		 * @return
+		 */
+		List<Map<String, Object>> getListMapBySql(String sql,Object ...params);
+		
+		/**
+		 * 通过sql查询多个记录，以数组作为返回记录的载体
+		 * @param sql
+		 * @param params
+		 * @return
+		 */
+		List<Object[]> getListArrayBySql(String sql,Object ...params);
+		
+		/**
+		 * 通过sql查询多个记录，以值对象作为返回记录的载体
+		 * @param cls
+		 * @param sql
+		 * @param params
+		 * @return
+		 */
+		<T> List<T>  getListValueObjectBySql(Class<T> cls,String sql,Object ...params);
+		
+		/**
+		 * 执行普通sql,不返回任何结果
+		 * @param sql
+		 * @param params
+		 */
+		void executeSql(String sql,Object ...params);
+		
+		/**
+		 * 执行多句sql,不返回任何结果
+		 * @param sqls
+		 * @param params
+		 */
+		void executeSqls(String[]sqls,Object ...params);
+		
+		/**
+		 * 执行普通sql，返回影响行数
+		 * @param sql
+		 * @return
+		 */
+		int executeSqlAndGetCount(String sql,Object ...params);
+	}
+	/**
+	 * 与具体实体相关的数据库访问接口，这部分功能在spring-data框架中是重复的，所以意义并不重大
+	 * created on Nov 17, 2017
+	 * @author evanf
+	 * 
+	 * @param <T> 实体类
+	 * @param <V> 实体的主键类型
+	 */
+	public interface IEntityDao<T,V> {
+		
+		/**
+		 * 查询所有记录
+		 * @return
+		 */
+		List<T> findAll();
+		
+		/**
+		 * 通过主键查询单个记录
+		 * @param id
+		 * @return
+		 */
+		T getOne(V id);
+		
+		/**
+		 * 通过主键集合，批量查询记录
+		 * @param ids
+		 * @return
+		 */
+		List<T> findByIds(Iterable<V> ids);
+		
+		/**
+		 * 通过sql语句查询单个记录
+		 * @param sql
+		 * @param params
+		 * @return
+		 */
+		T findOneBySql(String sql,Object ...params);
+		
+		/**
+		 * 通过sql查询批量记录
+		 * @param sql
+		 * @param params
+		 * @return
+		 */
+		List<T> findBySql(String sql,Object ...params);
+		
+		/**
+		 * 分页查询记录
+		 * @param pageNum
+		 * @param pageIndex
+		 * @return
+		 */
+		List<T> findByPage(int pageNum,int pageIndex);
+		
+		/**
+		 * 通过sql分页查询记录
+		 * @param pageNum
+		 * @param pageIndex
+		 * @param sql
+		 * @param params
+		 * @return
+		 */
+		List<T> findByPageAndSql(int pageNum,int pageIndex,String sql,Object ...params);
+		
+		/**
+		 * 新增多个记录
+		 * @param objs
+		 * @return
+		 */
+		<S extends T> List<S> save(Iterable<S> objs);
+		
+		/**
+		 * 新增单个记录
+		 * @param obj
+		 * @return
+		 */
+		<S extends T> S save(S obj);
+		
+		/**
+		 * 更新记录
+		 * @param obj
+		 */
+		<S extends T> void update(S obj);
+		
+		/**
+		 * 通过主键删除单个记录
+		 * @param id
+		 */
+		void deleteById(V id);
+		
+		/**
+		 * 通过主键集合批量删除记录
+		 * @param ids
+		 */
+		void deleteById(Iterable<V> ids);
+		
+		/**
+		 * 通过对象删除单个记录
+		 * @param t
+		 */
+		void delete(T t);
+		
+		/**
+		 * 通过对象集合删除多个记录
+		 * @param objs
+		 */
+		void delete(Iterable<? extends T> objs);
+		
+		/**
+		 * 删除所有记录
+		 */
+		void deleteAll();
 
+	}
+	/**
+	 * Hibernate具体实体数据库访问接口
+	 * created on Nov 17, 2017
+	 * @author evanf
+	 * 
+	 * @param <T> 实体类
+	 * @param <V> 实体的主键类型
+	 */
+	public interface IHibernateEntityDao<T,V> extends IEntityDao<T,V>{
+		
+		/**
+		 * 通过hql查询单个记录
+		 * @param hql
+		 * @param params
+		 * @return
+		 */
+		T findOneByHql(String hql,Object ...params);
+		
+		/**
+		 * 通过hql查询多个记录
+		 * @param hql
+		 * @param params
+		 * @return
+		 */
+		List<T> findByHql(String hql,Object ...params);
+		
+		/**
+		 * 通过hql分页查询记录
+		 * @param pageNum
+		 * @param pageIndex
+		 * @param hql
+		 * @param params
+		 * @return
+		 */
+		List<T> findByPageAndHql(int pageNum,int pageIndex,String hql,Object ...params);
 
+	}
+	/**
+	 * 基于Hibernate扩展的动态复杂的数据库访问接口
+	 * created on Nov 17, 2017
+	 * @author evanf
+	 *
+	 */
+	public interface IHibernateDynamicComplexDao extends IDynamicComplexDao {
+		
+		/**
+		 * 通过hql查询单个记录，以字段名作为key的map作为返回记录的载体
+		 * @param hql
+		 * @param params
+		 * @return
+		 */
+		Map<String, Object> getAliasMapByHql(String hql,Object ...params); 
+		
+		/**
+		 * 通过hql查询单个记录，以顺序index作为key的map作为返回记录的载体
+		 * @param hql
+		 * @param params
+		 * @return
+		 */
+		Map<Integer, Object> getMapByHql(String hql,Object ...params);
+		
+		/**
+		 * 通过hql查询单个记录，以数组作为返回记录的载体
+		 * @param hql
+		 * @param params
+		 * @return
+		 */
+		Object[] getArrayByHql(String hql,Object ...params);
+		
+		/**
+		 * 通过hql查询单个记录，以值对象作为返回记录的载体
+		 * @param cls
+		 * @param hql
+		 * @param params
+		 * @return
+		 */
+		<T> T  getValueObjectByHql(Class<T> cls,String hql,Object ...params);
+		
+		/**
+		 * 通过hql查询多个记录，以字段名作为key的map作为返回记录的载体
+		 * @param hql
+		 * @param params
+		 * @return
+		 */
+		List<Map<String, Object>> getListAliasMapByHql(String hql,Object ...params);
+		
+		/**
+		 * 通过hql查询多个记录，以顺序index作为key的map作为返回记录的载体
+		 * @param hql
+		 * @param params
+		 * @return
+		 */
+		List<Map<String, Object>> getListMapByHql(String hql,Object ...params);
+		
+		/**
+		 * 通过hql查询多个记录，以数组作为返回记录的载体
+		 * @param hql
+		 * @param params
+		 * @return
+		 */
+		List<Object[]> getListArrayByHql(String hql,Object ...params);
+		
+		/**
+		 * 通过hql查询多个记录，以值对象作为返回记录的载体
+		 * @param cls
+		 * @param hql
+		 * @param params
+		 * @return
+		 */
+		<T> List<T>  getListValueObjectByHql(Class<T> cls,String hql,Object ...params);
+		
+		/**
+		 * 执行普通hql,不返回任何结果
+		 * @param hql
+		 * @param params
+		 */
+		void executeHql(String hql,Object ...params);
+		
+		/**
+		 * 执行多句hql,不返回任何结果
+		 * @param hqls
+		 * @param params
+		 */
+		void executehqls(String[]hqls,Object ...params);
+	}
+	 * Hibernate动态复杂的数据库访问实现
+	 * created on Nov 17, 2017
+	 * @author evanf
+	 *
+	 */
+	public class HibernateDynamicComplexDaoImpl implements IHibernateDynamicComplexDao {
 
-动态查询的问题
+		@Override
+		public Map<String, Object> getAliasMapBySql(String sql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
 
+		@Override
+		public Map<Integer, Object> getMapBySql(String sql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public Object[] getArrayBySql(String sql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public <T> T getValueObjectBySql(Class<T> cls, String sql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<Map<String, Object>> getListAliasMapBySql(String sql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<Map<String, Object>> getListMapBySql(String sql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<Object[]> getListArrayBySql(String sql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public <T> List<T> getListValueObjectBySql(Class<T> cls, String sql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public void executeSql(String sql, Object... params) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void executeSqls(String[] sqls, Object... params) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public int executeSqlAndGetCount(String sql, Object... params) {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public Map<String, Object> getAliasMapByHql(String hql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public Map<Integer, Object> getMapByHql(String hql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public Object[] getArrayByHql(String hql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public <T> T getValueObjectByHql(Class<T> cls, String hql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<Map<String, Object>> getListAliasMapByHql(String hql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<Map<String, Object>> getListMapByHql(String hql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<Object[]> getListArrayByHql(String hql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public <T> List<T> getListValueObjectByHql(Class<T> cls, String hql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public void executeHql(String hql, Object... params) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void executehqls(String[] hqls, Object... params) {
+			// TODO Auto-generated method stub
+			
+		}
+
+	}
+	/**
+	 * Hibernate具体实体数据库访问实现
+	 * created on Nov 17, 2017
+	 * @author evanf
+	 * 
+	 * @param <T> 实体类
+	 * @param <V> 实体的主键类型
+	 */
+	public class HibernateEntityDaoImpl<T,V> implements IHibernateEntityDao<T,V> {
+
+		@Override
+		public List<T> findAll() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public T getOne(V id) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<T> findByIds(Iterable<V> ids) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public T findOneBySql(String sql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<T> findBySql(String sql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<T> findByPage(int pageNum, int pageIndex) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<T> findByPageAndSql(int pageNum, int pageIndex, String sql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public <S extends T> List<S> save(Iterable<S> objs) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public <S extends T> S save(S obj) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public <S extends T> void update(S obj) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void deleteById(V id) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void deleteById(Iterable<V> ids) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void delete(T t) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void delete(Iterable<? extends T> objs) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void deleteAll() {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public T findOneByHql(String hql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<T> findByHql(String hql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<T> findByPageAndHql(int pageNum, int pageIndex, String hql, Object... params) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+	}
 
 数据库访问模块的注意事项
-
+	1.数据库访问模块不应该包括事务，只需要支持事务（不写就行）
+	2.事务管理交给相关容器和框架，放给service进行管理和调用
+	3.数据库访问模块不应该包括缓存，服务端缓存应该在service当中
 
 
