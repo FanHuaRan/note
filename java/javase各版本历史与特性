@@ -26,7 +26,7 @@ Java Version SE 7
 		引入Java NIO.2开发包；
 		数值类型可以用2进制字符串表示，并且可以在字符串表示中添加下划线；
 		钻石型语法；实际上就是泛型的类型腿短
-		null值的自动处理。 注意:非Optional<T>,而是?语法糖 String name=person?.getName()?.getGivenName();
+		null值的自动处理。注意:非Optional<T>,而是?语法糖 String name=person?.getName()?.getGivenName();
 
 Java Version SE 6
 	开发代号为Mustang（野马），于2006-12-11发行。
@@ -51,7 +51,7 @@ Java Version SE 5
 		元数据（注解）；
 		java.util.concurrent并发包(AQS+CSA+一系列并发容器)
 		引入Instrumentation。
-
+		
 J2SE Version 1.4
 	开发代号为Merlin（隼），于2004-02-06发行（首次在JCP下发行）。
 	引入的新特性包括:
