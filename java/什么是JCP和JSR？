@@ -1,0 +1,14 @@
+什么是JCP和JSR？
+一.JCP
+   JCP（JavaCommunityProcess）：java社区进程，是一个成立于1998年的开放的国际组织，目的是使有兴趣的各方人员参与定义Java的特征和未来版本的正式过程当中。该组织由oracle（曾经是sun）领导，负责管理java和接受各种Java Specification Requests，包括谷歌，IBM等公司都加入了该组织
+   
+二.JSR
+   JSR(Java Specification Request)：java规范请求，是JCP使用的正式规范文档，描述那些被提议加入到Java体系中的的规范和技术。
+   JSR变为final状态前需要正式的公开审查，并由JCPExecutiveCommittee投票决定。最终的JSR会提供一个参考实现，它是免费而且公开源代码的；还有一个验证是否符合API规范的Technology Compatibility Kit（技术兼容包）。
+
+三.JSR列表
+
+
+
+四.JCP和JSR官网
+   https://jcp.org/en/home/index
