@@ -1,0 +1,8 @@
+#拉取Nexus镜像
+docker pull sonatype/nexus3
+#创建持久化目录
+mkdir /var/nexus_data && chown -R 200 /var/nexus_data
+#启动镜像
+docker run -d -p 28081:8081 --name nexus -v nexus-data:/var/nexus-data --restart=always sonatype/nexus3
+#开启端口
+iptables -A INPUT -p tcp --dport 28081 -j ACCEPT
