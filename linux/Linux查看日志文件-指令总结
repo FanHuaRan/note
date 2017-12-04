@@ -1,0 +1,142 @@
+linux查看日志文件内容命令包括：cat、tail、head、echo、tac、sed等，做个总结
+
+cat
+	用法：cat [选项]... [文件]...
+    将[文件]或标准输入组合输出到标准输出。
+    -A, --show-all           等于-vET
+    -b, --number-nonblank    对非空输出行编号
+    -e                       等于-vE
+    -E, --show-ends          在每行结束处显示"$"
+    -n, --number             对输出的所有行编号
+    -s, --squeeze-blank      不输出多行空行
+    -t                       与-vT 等价
+    -T, --show-tabs          将跳格字符显示为^I
+    -u                       (被忽略)
+    -v, --show-nonprinting   使用^ 和M- 引用，除了LFD和 TAB 之外
+        --help		显示此帮助信息并退出
+        --version		显示版本信息并退出
+	more:
+	如果没有指定文件，或者文件为"-"，则从标准输入读取。
+	  cat filename - g  先输出f 的内容，然后输出标准输入的内容，最后输出g 的内容。
+	  cat        将标准输入的内容复制到标准输出
+	  cat > filename   从键盘创建一个新文件(只能创建新文件,不能编辑已有文件)
+      cat file1 file2 > file 将几个文件合并为一个文件
+
+tail
+	用法：tail [选项]... [文件]...
+    打印文件的最后10行到标准输出流（缺省10行）
+    -c, --bytes=K            output the last K bytes; or use -c +K to output
+                             bytes starting with the Kth of each file
+    -f, --follow[={name|descriptor}]
+                           output appended data as the file grows;
+                             an absent option argument means 'descriptor'
+    -F                       same as --follow=name --retry (重要！ 动态一直显示文件末尾的内容)
+    -n, --lines=K            output the last K lines, instead of the last 10;
+                             or use -n +K to output starting with the Kth
+        --max-unchanged-stats=N
+                           with --follow=name, reopen a FILE which has not
+                             changed size after N (default 5) iterations
+                             to see if it has been unlinked or renamed
+                             (this is the usual case of rotated log files);
+                             with inotify, this option is rarely useful
+        --pid=PID            with -f, terminate after process ID, PID dies
+    -q, --quiet, --silent    never output headers giving file names
+      --retry              keep trying to open a file if it is inaccessible
+    
+    -s, --sleep-interval=N   with -f, sleep for approximately N seconds
+                             (default 1.0) between iterations;
+                             with inotify and --pid=P, check process P at
+                             least once every N seconds
+    -v, --verbose            always output headers giving file names
+        --help		显示此帮助信息并退出
+        --version		显示版本信息并退出
+    more:
+    K 后面可以跟乘号:
+	b 512, kB 1000, K 1024, MB 1000*1000, M 1024*1024,
+	GB 1000*1000*1000, G 1024*1024*1024, 对于T, P, E, Z, Y 同样适用。
+
+head
+	用法：head [选项]... [文件]...
+	打印文件的最后10行到标准输出流（缺省10行）
+	-c, --bytes=[-]K         print the first K bytes of each file;
+	                             with the leading '-', print all but the last
+	                             K bytes of each file
+	-n, --lines=[-]K         print the first K lines instead of the first 10;
+	                             with the leading '-', print all but the last
+	                             K lines of each file
+	-q, --quiet, --silent	不显示包含给定文件名的文件头
+	-v, --verbose		总是显示包含给定文件名的文件头
+	    --help		显示此帮助信息并退出
+	    --version		显示版本信息并退出
+
+	K 后面可以跟乘号:
+	b 512, kB 1000, K 1024, MB 1000*1000, M 1024*1024,
+	GB 1000*1000*1000, G 1024*1024*1024, 对于T, P, E, Z, Y 同样适用。
+
+echo
+	用法：echo [选项][字符串]
+	打印到输出流
+	选项	描述
+	-n	不输出末尾的换行符。
+	-e	启用反斜线转义。
+	\b	退格
+	\\	反斜线
+	\n	新行
+	\r	回车
+	\t	水平制表符
+	\v	垂直制表符
+    more:
+    1.输出一个声明的变量值
+     比如:
+	 声明变量x并给它赋值为10。
+	 $ x=10
+	 会输出它的值：
+	 $ echo The value of variable x = $x
+	   The value of variable x =10
+    2.使用echo命令打印所有的文件和文件夹（ls命令的替代）
+     $ echo format
+     比如：
+	 $ echo *.jpeg
+	 network.jpeg
+    3.使用echo命令打印内容到文件
+     echo content > file
+     比如：
+     $ echo "the echo command test!">a.sh
+
+tac
+	用法：tac [选项] [文件]
+	反向打印文件到输出流：与cat相反
+	 -b, --before			在行前而非行尾添加分隔标志
+     -r, --regex			将分隔标志视作正则表达式来解析
+     -s, --separator=字符串	使用指定字符串代替换行作为分隔标志
+         --help		显示此帮助信息并退出
+         --version		显示版本信息并退出
+
+sed
+    用法: sed [选项]... {脚本(如果没有其他脚本)} [输入文件]...
+    并不是一个文件查看工具，是一个文件处理工具，本身是一个管道命令，主要是以行为单位进行处理，可以将数据行进行替换、删除、新增、选取等特定工作
+    -n, --quiet, --silent 取消自动打印模式空间
+    -e 脚本, --expression=脚本   添加“脚本”到程序的运行列表 
+    -f 脚本文件, --file=脚本文件 添加“脚本文件”到程序的运行列表
+    --follow-symlinks  直接修改文件时跟随软链接
+    -i[SUFFIX], --in-place[=SUFFIX]  edit files in place (makes backup if SUFFIX supplied)
+    -c, --copy  use copy instead of rename when shuffling files in -i mode
+    -b, --binary  does nothing; for compatibility with WIN32/CYGWIN/MSDOS/EMX (
+                 open files in binary mode (CR+LFs are not treated specially))
+    -l N, --line-length=N 指定“l”命令的换行期望长度
+    --posix 关闭所有 GNU 扩展
+    -r, --regexp-extended 在脚本中使用扩展正则表达式
+    -s, --separate 将输入文件视为各个独立的文件而不是一个长的连续输入
+    -u, --unbuffered 从输入文件读取最少的数据，更频繁的刷新输出
+    -z, --null-data  separate lines by NUL characters
+        --help   display this help and exit
+       --version output version information and exit
+
+高级且常用的打印技巧
+	1.tail -f file 不断打印文件末尾内容（有追加的话）
+	2.从第3000行开始，显示1000行。
+      cat filename | tail -n +3000 | head -n 1000
+    3.显示1000行到3000行
+      cat filename| head -n 3000 | tail -n +1000
+    4.只查看文件的第5行到第10行
+      sed -n '5,10p' filename

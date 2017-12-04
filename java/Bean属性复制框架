@@ -1,0 +1,225 @@
+Bean属性复制框架
+一.apache的BeanUtils
+  API依赖：
+  	<dependency>
+	    <groupId>commons-beanutils</groupId>
+	    <artifactId>commons-beanutils</artifactId>
+	    <version>1.9.2</version>
+	</dependency>
+  API接口：org.apache.commons.beanutils.BeanUtils
+  测试demo:
+    /**
+	 * 
+	 * 基于apache BeanUtils的复制测试
+	 * created on Nov 23, 2017
+	 * 
+	 * @author Evan Fan
+	 *
+	 */
+	public class ApacheBeanUtilsTest {
+		private static final int TEST_COUN=100000;
+		/**
+		 * 测试一次
+		 * @throws IllegalAccessException
+		 * @throws InvocationTargetException
+		 */
+		@Test
+		public void testSingle() throws IllegalAccessException, InvocationTargetException {
+			StudentInfo studentInfo=new StudentInfo(1, "tom",12, "more");
+			Student student=new Student();
+			BeanUtils.copyProperties(student,studentInfo);
+			assertEquals(student.getStudentId(), 1);
+			assertEquals(student.getName(), "tom");
+			assertEquals(student.getAge(), (Integer)12);
+			assertEquals(student.getLessProperty(), null);
+		}
+		/**
+		 * 测试100000次
+		 * @throws InvocationTargetException 
+		 * @throws IllegalAccessException 
+		 */
+		@Test
+		public void testMany() throws IllegalAccessException, InvocationTargetException{
+			StudentInfo studentInfo=new StudentInfo(1, "tom",12, "more");
+			Student student=new Student();
+			for(int i=0;i<TEST_COUN;i++){
+				BeanUtils.copyProperties(student,studentInfo);
+			}
+			assertEquals(student.getStudentId(), 1);
+			assertEquals(student.getName(), "tom");
+			assertEquals(student.getAge(), (Integer)12);
+			assertEquals(student.getLessProperty(), null);
+		}
+	}
+	运行结果：10W次转换2.011秒
+二.Spring的BeanUtils
+  API依赖：
+  	 <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-context</artifactId>
+        <version>5.0.1.RELEASE</version>
+    </dependency>
+  API接口：org.springframework.beans.BeanUtils
+  测试demo:
+    /**
+	 * 基于Spring BeanUtils的复制测试
+	 * created on Nov 23, 2017
+	 * 
+	 * @author Evan Fan
+	 *
+	 */
+	public class SpringBeanUtilsTest {
+		private static final int TEST_COUN=100000;
+		/**
+		 * 测试一次
+		 * @throws IllegalAccessException
+		 * @throws InvocationTargetException
+		 */
+		@Test
+		public void testSingle() throws IllegalAccessException, InvocationTargetException {
+			StudentInfo studentInfo=new StudentInfo(1, "tom",12, "more");
+			Student student=new Student();
+			BeanUtils.copyProperties(studentInfo,student);
+			assertEquals(student.getStudentId(), 1);
+			assertEquals(student.getName(), "tom");
+			assertEquals(student.getAge(), (Integer)12);
+			assertEquals(student.getLessProperty(), null);
+		}
+		/**
+		 * 测试100000次
+		 * @throws InvocationTargetException 
+		 * @throws IllegalAccessException 
+		 */
+		@Test
+		public void testMany() throws IllegalAccessException, InvocationTargetException{
+			StudentInfo studentInfo=new StudentInfo(1, "tom",12, "more");
+			Student student=new Student();
+			for(int i=0;i<TEST_COUN;i++){
+				BeanUtils.copyProperties(studentInfo,student);
+			}
+			assertEquals(student.getStudentId(), 1);
+			assertEquals(student.getName(), "tom");
+			assertEquals(student.getAge(), (Integer)12);
+			assertEquals(student.getLessProperty(), null);
+		}
+	}
+	运行结果：10W次转换0.252秒
+三.Spring的PropertyUtils
+  API依赖：
+  	<dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-context</artifactId>
+        <version>5.0.1.RELEASE</version>
+    </dependency>
+  API接口：org.apache.commons.beanutils.PropertyUtils
+  测试demo:
+    /**
+	 * 基于Spring PropertyUtils的复制测试
+	 * created on Nov 23, 2017
+	 * 
+	 * @author Evan Fan
+	 *
+	 */
+	public class SpringPropertyUtilsTest {
+		private static final int TEST_COUN=100000;
+		/**
+		 * 测试一次
+		 * @throws IllegalAccessException
+		 * @throws InvocationTargetException
+		 * @throws NoSuchMethodException 
+		 */
+		@Test
+		public void testSingle() throws IllegalAccessException, InvocationTargetException, NoSuchMethodException {
+			StudentInfo studentInfo=new StudentInfo(1, "tom",12, "more");
+			Student student=new Student();
+			PropertyUtils.copyProperties(student,studentInfo);
+			assertEquals(student.getStudentId(), 1);
+			assertEquals(student.getName(), "tom");
+			assertEquals(student.getAge(), (Integer)12);
+			assertEquals(student.getLessProperty(), null);
+		}
+		/**
+		 * 测试100000次
+		 * @throws InvocationTargetException 
+		 * @throws IllegalAccessException 
+		 * @throws NoSuchMethodException 
+		 */
+		@Test
+		public void testMany() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException{
+			StudentInfo studentInfo=new StudentInfo(1, "tom",12, "more");
+			Student student=new Student();
+			for(int i=0;i<TEST_COUN;i++){
+				PropertyUtils.copyProperties(student,studentInfo);
+			}
+			assertEquals(student.getStudentId(), 1);
+			assertEquals(student.getName(), "tom");
+			assertEquals(student.getAge(), (Integer)12);
+			assertEquals(student.getLessProperty(), null);
+		}
+	}
+	运行结果：10W次转换1.611秒
+四.Cglib的BeanCopier
+  API依赖：
+  	<dependency>
+	    <groupId>cglib</groupId>
+	    <artifactId>cglib</artifactId>
+	    <version>2.2.2</version>
+	</dependency>
+  API接口：net.sf.cglib.beans.BeanCopier
+  测试demo:
+    /**
+	 * 基于Cglib BeanCopier的复制测试
+	 * created on Nov 23, 2017
+	 * 
+	 * @author Evan Fan
+	 *
+	 */
+	public class BeanCopierTest {
+		private static final int TEST_COUN=100000;
+		
+		private BeanCopier beanCopier=BeanCopier.create(StudentInfo.class,Student.class, false);
+		
+		/**
+		 * 测试一次
+		 * @throws IllegalAccessException
+		 * @throws InvocationTargetException
+		 * @throws NoSuchMethodException 
+		 */
+		@Test
+		public void testSingle() throws IllegalAccessException, InvocationTargetException, NoSuchMethodException {
+			StudentInfo studentInfo=new StudentInfo(1, "tom",12, "more");
+			Student student=new Student();
+			beanCopier.copy(studentInfo, student, null);
+			assertEquals(student.getStudentId(), 1);
+			assertEquals(student.getName(), "tom");
+			assertEquals(student.getAge(), (Integer)12);
+			assertEquals(student.getLessProperty(), null);
+		}
+		/**
+		 * 测试100000次
+		 * @throws InvocationTargetException 
+		 * @throws IllegalAccessException 
+		 * @throws NoSuchMethodException 
+		 */
+		@Test
+		public void testMany() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException{
+			StudentInfo studentInfo=new StudentInfo(1, "tom",12, "more");
+			Student student=new Student();
+			for(int i=0;i<TEST_COUN;i++){
+				beanCopier.copy(studentInfo, student, null);
+			}
+			assertEquals(student.getStudentId(), 1);
+			assertEquals(student.getName(), "tom");
+			assertEquals(student.getAge(), (Integer)12);
+			assertEquals(student.getLessProperty(), null);
+		}
+	}
+	运行结果：10W次转换0.006秒
+五.总结
+   1.四种框架从性能上来说：BeanCopier > spring的BeanUtils > spring的PropertyUtils > apache的BeanUtils
+   2.四种框架都是通过反射操作具有public访问权限的set方法，所以如果我们把想要复制的属性值的set方法设置为private是不会成功的，BeanCopier还会直接异常
+   3.spring的PropertyUtils支持转换类型
+   4.性能区别来源于对set方法的缓存，BeanCopier、BeanUtils、PropertyUtils都缓存了set方法
+   5.实际使用推荐BeanCopier,虽然一个BeanCopier只能做一个变换，不过性能最高！
+   6.Bean属性复制技术特别适用于SOA中，ValuesObject的相互转换！
+ 

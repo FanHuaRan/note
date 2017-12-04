@@ -1,0 +1,85 @@
+什么是双向关联
+	/**
+	 * 专辑实体
+	 * @author evanf
+	 * @since Nov 10, 2017
+	 */
+	public class Album implements Serializable{
+		private static final long serialVersionUID = 6829034972961232904L;
+		
+		private int albumid;
+		private Integer artistid;
+		private Integer genreid;
+		private String title;
+		private Float  price;
+		private String albumArtUrl;
+		private Artist artist;
+		private Genre genre;
+		......
+	}
+	/**
+	 * 艺术家实体
+	 * @author evanf
+	 * @since Nov 10, 2017
+	 */
+	public class Artist implements Serializable {
+		private static final long serialVersionUID = -5812605946899402357L;
+		
+		private int artistid;
+		private String name;
+		private Integer age;
+		private Set<Album> albums;
+		......
+	}
+	<hibernate-mapping>
+	    <class name="com.evanf.hibernatemusic.model.Album" table="album" catalog="musicstore">
+	        <id name="albumid">
+	            <column name="albumid" />
+	            <generator class="identity" />
+	        </id>
+	        <property name="artistid" type="java.lang.Integer">
+	        	<column name="artistid" not-null="true"></column>
+	        </property>
+	        <property name="genreid" type="java.lang.Integer">
+	        	<column name="genreid" not-null="true"></column>
+	        </property>
+	        <property name="title" type="java.lang.String">
+	            <column name="title" length="30" not-null="true" />
+	        </property>
+	        <property name="price" type="java.lang.Float">
+	            <column name="price" precision="18" not-null="true" />
+	        </property>
+	        <property name="albumArtUrl" type="java.lang.String">
+	            <column name="albumArtUrl" length="50" />
+	        </property>
+	        <many-to-one name="artist" class="com.evanf.hibernatemusic.model.Artist" insert="false" update="false" fetch="select">
+	            <column name="artistid" not-null="true" />
+	        </many-to-one>
+	        <many-to-one name="genre" class="com.evanf.hibernatemusic.model.Genre" insert="false" update="false" fetch="select">
+	            <column name="genreid" not-null="true" />
+	        </many-to-one>
+	    </class>
+	</hibernate-mapping>
+	<hibernate-mapping>
+	    <class name="com.evanf.hibernatemusic.model.Artist" table="artist" catalog="musicstore">
+	        <id name="artistid" type="java.lang.Integer">
+	            <column name="artistid" />
+	            <generator class="identity" />
+	        </id>
+	        <property name="name" type="java.lang.String">
+	            <column name="name" />
+	        </property>
+	       	<!-- 1对多映射 -->
+	        <set name="albums" inverse="true">
+	               <key>
+	               		<column name="artistId" not-null="true" />
+	               </key>
+	               <one-to-many class="com.evanf.hibernatemusic.model.Album" />
+	        </set>
+	    </class>
+	</hibernate-mapping>
+双向关联问题
+	如果要访问一个具有双向关联关系的对象的各个属性值（特别是序列化）会因为递归而导致栈溢出
+解决方案
+	1.修改双向关联为单向关联
+	2.不把持久化对象作为数据传输对象，严格按照DTO-DO/BO-PO的格式分层。或者就只使用简单的ValuesObject
