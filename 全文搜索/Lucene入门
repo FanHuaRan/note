@@ -1,0 +1,41 @@
+一.Lucene是什么
+   Lucene是apache软件基金会4 jakarta项目组的一个子项目，是一个开放源代码的全文检索引擎工具包，但它不是一个完整的全文检索引擎，而是一个全文检索引擎的架构，提供了完整的查询引擎和索引引擎，部分文本分析引擎（英文与德文两种西方语言）。java界最出名的两大搜索引擎Elastic-search和Solr都是使用的Lucene作为底层工具包
+二.Lucene的简单原理
+   Lucene的原理很简单，实际上是预先对所有待查询的文件或者记录建立关键字的映射关系，然后即可通过关键字进行查询，甚至是相关模糊查询。
+   Lucene的核心是倒排索引。
+
+
+   使用Lucene的流程无非是：
+   1.准备原材料（待搜索资料）
+   2.建立索引
+   3.在索引中进行关键字查询
+
+三.Lucene的API简单介绍
+   Lucene包含五大模块：
+   　Lucene-core：其中包括了常用的文档，索引，搜索，存储等相关核心代码。
+     Lucene-analyzers-common：这里面包含了各种语言的词法分析器，用于对文件内容进行关键字切分，
+     Lucene-highlighter：主要用于搜索出的内容高亮显示。
+　　 Lucene-queries和Lucene-queryparser：提供了搜索相关的代码，用于各种搜索，比如模糊搜索，范围搜索，等等。
+   核心类：
+   Analyzer 分析器
+   Document 一条记录
+   Directory 索引存储目录
+   创建索引核心类：
+   IndexWriterConfig 索引存储配置对象
+   IndexWriter 索引存储器
+   查询核心：
+   IndexSearcher 索引查询器
+   QueryParser 查询解析器
+   Query 查询对象
+四.使用Lucene开发一个简易文件搜索程序
+   
+
+
+五.参考文章和学习资料
+   1.【手把手教你全文检索】Apache Lucene初探 ：https://www.cnblogs.com/xing901022/p/3933675.html
+      作者编程水平不敢恭维
+   2.Lucene学习总结之八：Lucene的查询语法，JavaCC及QueryParser(1)：https://www.cnblogs.com/forfuture1978/archive/2010/05/08/1730200.html
+   3.Lucene系列：（10）多条件搜索 QueryParser：http://www.bubuko.com/infodetail-1757474.html
+   4.Lucene in action 
+   5.Lucene 应用 ppt: https://pan.baidu.com/s/1c1N3ONA 密码：ov50
+

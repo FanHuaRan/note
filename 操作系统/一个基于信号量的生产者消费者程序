@@ -1,0 +1,41 @@
+前提
+down()方法
+1 判断信号量的取值是否大于等于1
+2 如果是，将信号量的值减去一，继续向下执行
+3 否则，在该信号量上等待（进城被挂起）
+up()方法
+1 将信号量的值增加1（此操作将叫醒一个在信号量上面等待的进程）
+2 线程继续往下执行
+down()和up()是一组原子操作
+
+根据信号量、down和up方法设计一个生产者-消费者程序
+答案：
+#define N 100
+typedef int semaphore;
+semaphore mutex = 1;
+semaphore empty = N;
+semaphore full = 0;
+void producer(void)
+{
+    int item;
+    while(TRUE){
+        item = produce_item();
+        down(&empty);
+        down(&mutex);
+        insert_item(item);
+        up(&full);
+        up(&mutex);
+    }
+}
+void consumer(void)
+{
+    int item;
+    while(TRUE){
+        down(&full);
+        down(&mutex);
+        item = remove_item();
+        up(&empty);
+        up(&mutex);
+        consume_item(item);
+    }
+}

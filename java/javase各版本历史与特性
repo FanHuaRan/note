@@ -25,8 +25,9 @@ Java Version SE 7
 		支持try-with-resources；
 		引入Java NIO.2开发包；
 		数值类型可以用2进制字符串表示，并且可以在字符串表示中添加下划线；
-		钻石型语法；实际上就是泛型的类型腿短
+		钻石型语法；实际上就是泛型的类型推断
 		null值的自动处理。注意:非Optional<T>,而是?语法糖 String name=person?.getName()?.getGivenName();
+		Fork-Join框架
 
 Java Version SE 6
 	开发代号为Mustang（野马），于2006-12-11发行。
@@ -36,7 +37,7 @@ Java Version SE 6
 		引入Java Compiler API；
 		可插拔注解；
 		增加对Native PKI(Public Key Infrastructure)、Java GSS(Generic Security Service)、Kerberos和LDAP(Lightweight Directory Access Protocol)的支持；
-		继承Web Services；
+		提供Web Services API；
 		做了很多优化。
 
 Java Version SE 5
@@ -51,6 +52,7 @@ Java Version SE 5
 		元数据（注解）；
 		java.util.concurrent并发包(AQS+CSA+一系列并发容器)
 		引入Instrumentation。
+		完全修复volatile屏蔽指令重排序的语义和jvm内存模型
 		
 J2SE Version 1.4
 	开发代号为Merlin（隼），于2004-02-06发行（首次在JCP下发行）。
