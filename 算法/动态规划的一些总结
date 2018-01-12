@@ -1,0 +1,7 @@
+一.两种迭代过程
+   for(int i=0;i<=n;i++){
+   	  dp[i]=some(dp[i-1]);
+   }
+   for(int i=0;i<=n;i++){
+   	  dp[i+1]=some(dp[i]);
+   }
