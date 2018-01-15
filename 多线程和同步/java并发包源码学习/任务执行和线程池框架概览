@@ -1,0 +1,738 @@
+一.任务执行框架顶层接口Executor
+   源码如下：
+   public interface Executor {
+     //执行任务，一个任务就是一个Runnable
+     void execute(Runnable command);
+   }
+   Executor提供了一个任务执行的基本接口，从最上层引入了关于任务执行策略的抽象，常常被用来替代显式的自实例化线程执行任务，具有更强的伸缩性、扩展性和可控性。
+
+二.任务执行服务接口ExecutorService
+   该接口继承自Executor接口，源码如下：
+   public interface ExecutorService extends Executor {
+    //关闭任务执行服务，新任务将不会被接受，但已经提交的任务将会被全部执行
+    void shutdown();
+
+    //立即关闭任务执行服务，新任务将不会被接受，已经提交的任务将不会执行，正在执行的服务将会被打断。
+    //返回已经被提交的，但是还没有执行的任务
+    List<Runnable> shutdownNow();
+
+    //判断执行服务是否被关闭
+    boolean isShutdown();
+
+    //判断当前所有任务是否都已经在shutdown之后完成，包括被中断的任务，但不包括尚未执行的任务
+    boolean isTerminated();
+
+    //这个方法在shutdown之后可以调用
+    //目的是阻塞当前线程直到所有任务都已经完成或者时间超时
+    boolean awaitTermination(long timeout, TimeUnit unit)
+        throws InterruptedException;
+    
+    //提交一个带返回值的任务，返回future类型的对象，该对象封装了运行结果、运行异常且支持取消执行等操作
+    <T> Future<T> submit(Callable<T> task);
+
+    //提交一个不带返回值的任务，不过会将第二个参数作为该任务的返回值
+    <T> Future<T> submit(Runnable task, T result);
+
+    //提交一个不带返回值的任务，不过会返回一个future对象，用于实现任务执行的控制
+    Future<?> submit(Runnable task);
+
+    //批量执行带返回值任务，阻塞直到全部任务完成
+    <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)
+        throws InterruptedException;
+
+    //批量执行带返回值任务，阻塞直到全部任务完成或者超时
+    <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks,
+                                  long timeout, TimeUnit unit)
+        throws InterruptedException;
+
+    //批量执行带返回值的任务，直到一个任务运行完成则返回该任务的运行结果
+    <T> T invokeAny(Collection<? extends Callable<T>> tasks)
+        throws InterruptedException, ExecutionException;
+
+    // 批量执行带返回值，不过只返回一个成功执行的任务的结果,带超时
+    <T> T invokeAny(Collection<? extends Callable<T>> tasks,
+                    long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException;
+   }
+
+   Executor接口只提供了一个基本的任务执行接口，ExecutorService继承自Executor,提供了一系列的服务周期控制方法和对任务执行的扩展接口。
+
+三.任务执行接口Runable(不属于并发包)
+   源码如下：
+   @FunctionalInterface
+   public interface Runnable {
+      public abstract void run();
+   }
+
+四.带返回值和可抛出异常的任务执行接口Callable
+   源码如下：
+  @FunctionalInterface
+  public interface Callable<V> {
+    V call() throws Exception;
+  }
+
+  Runable接口可以直接给线程使用，Callable接口只能依托FutureTask而运行，因为它带返回值的魔法需要FutureTask的包装
+
+五.封装任务执行结果和任务控制的接口Future
+   源码如下：
+   public interface Future<V> {
+
+   	//尝试取消任务的执行，在以下场景将会失败：
+   	//1.任务已经完成
+   	//2.任务已经被取消
+   	//3.一些其他的原因
+   	//对于没有开始运行的任务，这些任务后面将不会运行，如果任务已经开始运行，那么mayInterruptIfRunning参数将决定是否打断该线
+   	//程，从而让该任务自己在合适的时候检测中断。从而自己停止任务
+    boolean cancel(boolean mayInterruptIfRunning);
+
+    //判断任务是否已经被取消
+    boolean isCancelled();
+
+    //判断任务是否已经完成
+    boolean isDone();
+
+    //获取运行结果，
+    //如果尚未运行完毕，将会阻塞直到运行完毕或者爆出异常
+    //get方法将会获取运行结果或者抛出运行时遇到的异常（被封装在ExecutionException中）
+    V get() throws InterruptedException, ExecutionException;
+
+    //获取运行结果，带超时机制
+    V get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException;
+   }
+
+六.封装任务执行结果和任务控制的运行任务Runnable接口
+   该接口继承自Runable和Future,是任务执行框架当中每个任务执行时的抽象
+    源码如下：
+	public interface RunnableFuture<V> extends Runnable, Future<V> {
+	    //再一次申明run方法，表示在运行结束后将会设置运行结果，除非被取消
+	    void run();
+	}
+
+七.任务运行的封装实现FutureTask
+   该类实现RunnableFuture,源码如下：
+   public class FutureTask<V> implements RunnableFuture<V> {
+    //任务运行状态
+    private volatile int state;
+    //几个状态常量
+    private static final int NEW          = 0;
+    private static final int COMPLETING   = 1;
+    private static final int NORMAL       = 2;
+    private static final int EXCEPTIONAL  = 3;
+    private static final int CANCELLED    = 4;
+    private static final int INTERRUPTING = 5;
+    private static final int INTERRUPTED  = 6;
+
+    //被封装的callable，我们写的逻辑会在这里面
+    private Callable<V> callable;
+
+    //返回值或者运行异常
+    private Object outcome; // non-volatile, protected by state reads/writes
+
+    //当前任务所运行的线程，通过cas进行保护
+    private volatile Thread runner;
+
+    //等待当前线程的运行节点
+    private volatile WaitNode waiters;
+
+    //获取运行结果获抛出取消异常获抛出运行异常
+    private V report(int s) throws ExecutionException {
+        Object x = outcome;
+        if (s == NORMAL)
+            return (V)x;
+        if (s >= CANCELLED)
+            throw new CancellationException();
+        throw new ExecutionException((Throwable)x);
+    }
+
+    //使用callable的构造方法
+    public FutureTask(Callable<V> callable) {
+        if (callable == null)
+            throw new NullPointerException();
+        this.callable = callable;
+        this.state = NEW;       // ensure visibility of callable
+    }
+
+    //使用Runnable的构造方法
+    public FutureTask(Runnable runnable, V result) {
+        //这儿会将runnable封装为callable
+        this.callable = Executors.callable(runnable, result);
+        this.state = NEW;       // ensure visibility of callable
+    }
+
+    //判断任务是否已经取消 中断中或者已经中断都会认为是已经取消
+    public boolean isCancelled() {
+        return state >= CANCELLED;
+    }
+    
+    //判断任务是否已经在执行或者执行完成，只要不处于new状态都返回true
+    public boolean isDone() {
+        return state != NEW;
+    }
+
+    //中断任务
+    public boolean cancel(boolean mayInterruptIfRunning) {
+        //如果任务已经尚处于new状态，先尝试使用CAS将任务状态设置为取消或者中断中
+        if (!(state == NEW &&
+              UNSAFE.compareAndSwapInt(this, stateOffset, NEW,
+                  mayInterruptIfRunning ? INTERRUPTING : CANCELLED)))
+            return false;
+        //如果要中断进行中断
+        try {    // in case call to interrupt throws exception
+            if (mayInterruptIfRunning) {
+                try {
+                    Thread t = runner;
+                    if (t != null)
+                        t.interrupt();
+                } finally { // final state
+                    UNSAFE.putOrderedInt(this, stateOffset, INTERRUPTED);
+                }
+            }
+        } finally {
+            //进行收尾工作
+            finishCompletion();
+        }
+        return true;
+    }
+
+    //获取运行结果
+    public V get() throws InterruptedException, ExecutionException {
+        int s = state;
+        //如果尚未完成则等待完成，不带超时
+        if (s <= COMPLETING)
+            s = awaitDone(false, 0L);
+        return report(s);
+    }
+
+    //获取运行结果，带超时
+    public V get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException {
+        if (unit == null)
+            throw new NullPointerException();
+        int s = state;
+        if (s <= COMPLETING &&
+            (s = awaitDone(true, unit.toNanos(timeout))) <= COMPLETING)
+            throw new TimeoutException();
+        return report(s);
+    }
+
+    //当任务完成的回调方法
+    protected void done() { }
+
+    //设置运行结果和运行状态，这是正确运行的情况
+    protected void set(V v) {
+        if (UNSAFE.compareAndSwapInt(this, stateOffset, NEW, COMPLETING)) {
+            outcome = v;
+            UNSAFE.putOrderedInt(this, stateOffset, NORMAL); // final state
+            finishCompletion();
+        }
+    }
+
+    //设置运行结果和运行状态，这是抛出异常的情况
+    protected void setException(Throwable t) {
+        if (UNSAFE.compareAndSwapInt(this, stateOffset, NEW, COMPLETING)) {
+            outcome = t;
+            UNSAFE.putOrderedInt(this, stateOffset, EXCEPTIONAL); // final state
+            finishCompletion();
+        }
+    }
+
+    //运行任务 核心
+    public void run() {
+        if (state != NEW ||
+            !UNSAFE.compareAndSwapObject(this, runnerOffset,
+                                         null, Thread.currentThread()))
+            return;
+        try {
+            Callable<V> c = callable;
+            if (c != null && state == NEW) {
+                V result;
+                boolean ran;
+                try {
+                    result = c.call();
+                    ran = true;
+                } catch (Throwable ex) {
+                    result = null;
+                    ran = false;
+                    setException(ex);
+                }
+                if (ran)
+                    set(result);
+            }
+        } finally {
+            // runner must be non-null until state is settled to
+            // prevent concurrent calls to run()
+            runner = null;
+            // state must be re-read after nulling runner to prevent
+            // leaked interrupts
+            int s = state;
+            if (s >= INTERRUPTING)
+                handlePossibleCancellationInterrupt(s);
+        }
+    }
+
+    //运行，不设置结果，然后进行状态重置
+    protected boolean runAndReset() {
+        if (state != NEW ||
+            !UNSAFE.compareAndSwapObject(this, runnerOffset,
+                                         null, Thread.currentThread()))
+            return false;
+        boolean ran = false;
+        int s = state;
+        try {
+            Callable<V> c = callable;
+            if (c != null && s == NEW) {
+                try {
+                    c.call(); // don't set result
+                    ran = true;
+                } catch (Throwable ex) {
+                    setException(ex);
+                }
+            }
+        } finally {
+            // runner must be non-null until state is settled to
+            // prevent concurrent calls to run()
+            runner = null;
+            // state must be re-read after nulling runner to prevent
+            // leaked interrupts
+            s = state;
+            if (s >= INTERRUPTING)
+                handlePossibleCancellationInterrupt(s);
+        }
+        return ran && s == NEW;
+    }
+
+    //检测可能的中断
+    private void handlePossibleCancellationInterrupt(int s) {
+        // It is possible for our interrupter to stall before getting a
+        // chance to interrupt us.  Let's spin-wait patiently.
+        if (s == INTERRUPTING)
+            while (state == INTERRUPTING)
+                Thread.yield(); // wait out pending interrupt
+
+        // assert state == INTERRUPTED;
+
+        // We want to clear any interrupt we may have received from
+        // cancel(true).  However, it is permissible to use interrupts
+        // as an independent mechanism for a task to communicate with
+        // its caller, and there is no way to clear only the
+        // cancellation interrupt.
+        //
+        // Thread.interrupted();
+    }
+
+    //任务结果等待节点
+    static final class WaitNode {
+        volatile Thread thread;
+        volatile WaitNode next;
+        WaitNode() { thread = Thread.currentThread(); }
+    }
+
+    //结束运行 依次唤醒等待get结果的节点
+    private void finishCompletion() {
+        // assert state > COMPLETING;
+        for (WaitNode q; (q = waiters) != null;) {
+            if (UNSAFE.compareAndSwapObject(this, waitersOffset, q, null)) {
+                for (;;) {
+                    Thread t = q.thread;
+                    if (t != null) {
+                        q.thread = null;
+                        LockSupport.unpark(t);
+                    }
+                    WaitNode next = q.next;
+                    if (next == null)
+                        break;
+                    q.next = null; // unlink to help gc
+                    q = next;
+                }
+                break;
+            }
+        }
+
+        done();
+
+        callable = null;        // to reduce footprint
+    }
+
+    // //结束运行 依次唤醒等待get结果的节点 带超时机制
+    private int awaitDone(boolean timed, long nanos)
+        throws InterruptedException {
+        final long deadline = timed ? System.nanoTime() + nanos : 0L;
+        WaitNode q = null;
+        boolean queued = false;
+        for (;;) {
+            if (Thread.interrupted()) {
+                removeWaiter(q);
+                throw new InterruptedException();
+            }
+
+            int s = state;
+            if (s > COMPLETING) {
+                if (q != null)
+                    q.thread = null;
+                return s;
+            }
+            else if (s == COMPLETING) // cannot time out yet
+                Thread.yield();
+            else if (q == null)
+                q = new WaitNode();
+            else if (!queued)
+                queued = UNSAFE.compareAndSwapObject(this, waitersOffset,
+                                                     q.next = waiters, q);
+            else if (timed) {
+                nanos = deadline - System.nanoTime();
+                if (nanos <= 0L) {
+                    removeWaiter(q);
+                    return state;
+                }
+                LockSupport.parkNanos(this, nanos);
+            }
+            else
+                LockSupport.park(this);
+        }
+    }
+
+    //移除等待节点
+    private void removeWaiter(WaitNode node) {
+        if (node != null) {
+            node.thread = null;
+            retry:
+            for (;;) {          // restart on removeWaiter race
+                for (WaitNode pred = null, q = waiters, s; q != null; q = s) {
+                    s = q.next;
+                    if (q.thread != null)
+                        pred = q;
+                    else if (pred != null) {
+                        pred.next = s;
+                        if (pred.thread == null) // check for race
+                            continue retry;
+                    }
+                    else if (!UNSAFE.compareAndSwapObject(this, waitersOffset,
+                                                          q, s))
+                        continue retry;
+                }
+                break;
+            }
+        }
+    }
+
+    // Unsafe 调用逻辑和本类相关字段的偏移位 cas和内存屏障需要
+    private static final sun.misc.Unsafe UNSAFE;
+    private static final long stateOffset;
+    private static final long runnerOffset;
+    private static final long waitersOffset;
+    static {
+        try {
+            UNSAFE = sun.misc.Unsafe.getUnsafe();
+            Class<?> k = FutureTask.class;
+            stateOffset = UNSAFE.objectFieldOffset
+                (k.getDeclaredField("state"));
+            runnerOffset = UNSAFE.objectFieldOffset
+                (k.getDeclaredField("runner"));
+            waitersOffset = UNSAFE.objectFieldOffset
+                (k.getDeclaredField("waiters"));
+        } catch (Exception e) {
+            throw new Error(e);
+        }
+    }
+
+  }
+
+八.执行服务的抽象实现AbstractExecutorService
+   该类实现自ExecutorService的大部分方法，但未实现核心的几个execute,shutdown等方法，源码如下：
+   public abstract class AbstractExecutorService implements ExecutorService {
+
+    //包装runnable形成一个具体的执行任务
+    protected <T> RunnableFuture<T> newTaskFor(Runnable runnable, T value) {
+        return new FutureTask<T>(runnable, value);
+    }
+
+    //包装callable 形成一个具体的执行任务
+    protected <T> RunnableFuture<T> newTaskFor(Callable<T> callable) {
+        return new FutureTask<T>(callable);
+    }
+
+    //提交Runnable任务
+    public Future<?> submit(Runnable task) {
+        if (task == null) throw new NullPointerException();
+        RunnableFuture<Void> ftask = newTaskFor(task, null);
+        execute(ftask);
+        return ftask;
+    }
+
+    //提交runable任务
+    public <T> Future<T> submit(Runnable task, T result) {
+        if (task == null) throw new NullPointerException();
+        RunnableFuture<T> ftask = newTaskFor(task, result);
+        execute(ftask);
+        return ftask;
+    }
+
+    //提交callable任务
+    public <T> Future<T> submit(Callable<T> task) {
+        if (task == null) throw new NullPointerException();
+        RunnableFuture<T> ftask = newTaskFor(task);
+        execute(ftask);
+        return ftask;
+    }
+
+    //invokeany的核心
+    private <T> T doInvokeAny(Collection<? extends Callable<T>> tasks,
+                              boolean timed, long nanos)
+        throws InterruptedException, ExecutionException, TimeoutException {
+       .....使用ExecutorCompletionService实现直到一个任务执行完成就返回的逻辑
+    }
+
+      //批量执行任务，直到一个任务执行完成 
+    public <T> T invokeAny(Collection<? extends Callable<T>> tasks)
+        throws InterruptedException, ExecutionException {
+        try {
+            return doInvokeAny(tasks, false, 0);
+        } catch (TimeoutException cannotHappen) {
+            assert false;
+            return null;
+        }
+    }
+
+    //批量执行任务，直到一个任务执行完成 带超时
+    public <T> T invokeAny(Collection<? extends Callable<T>> tasks,
+                           long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException {
+        return doInvokeAny(tasks, true, unit.toNanos(timeout));
+    }
+
+    //批量执行任务，直到全部运行完成
+    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)
+        throws InterruptedException {
+      ......
+    }
+
+    //批量执行任务，直到全部运行完成，带超时机制
+    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks,
+                                         long timeout, TimeUnit unit)
+        throws InterruptedException {
+      ......
+    }
+
+}
+
+九.线程池核心ThreadPoolExecutor
+   该类继承自AbstractExecutorService,实现了所有的抽象方法，是线程池核心中的核心
+   public class ThreadPoolExecutor extends AbstractExecutorService {
+     .......
+   }
+   源码解析：https://user.qzone.qq.com/834171100/blog/1503996829
+   几个重要参数：
+   1.corePoolSize：线程池核心线程数，默认情况下，核心线程会在线程池中一直存活，即使它们处于闲置状态。如果ThreadPoolExecutor的allowCoreThreadTimeOut属性设置为true,那么闲置的核心线程在等待新任务到来时会有超时策略，这个时间间隔由keepAliveTime所指定的时长后，核心线程就会被终止。
+   2.maximumPoolSize：线程池所能容纳的最大线程数，当活动线程达到这个数值后，后续的新任务将被阻塞。
+   3.keepAliveTime：非核心线程闲置时的超时时长，超过这个时长，非核心线程就会被回收。当ThreadPoolExecutor的allowCoreThreadTimeOut属性设置为true时，keepAliveTime同样会作用于核心线程。
+   4.unit：keepAliveTime 参数的时间单位。
+   5.workQueue：执行前用于保持任务的队列。此队列仅保持由 execute 方法提交的 Runnable 任务。
+   6.threadFactory：执行程序创建新线程时使用的工厂。
+   7.handler：由于超出线程范围和队列容量而使执行被阻塞时所使用的处理程序。
+
+十.任务执行服务的工程和辅助方法类Executors
+   暂时只看几个工厂方法：
+   public class Executors {
+
+    //固定线程数量的执行服务
+    public static ExecutorService newFixedThreadPool(int nThreads) {
+        return new ThreadPoolExecutor(nThreads, nThreads,
+                                      0L, TimeUnit.MILLISECONDS,
+                                      new LinkedBlockingQueue<Runnable>());
+    }
+
+    //基于工作窃取原理的任务执行服务（fork-join） parallelism是线程数量
+    public static ExecutorService newWorkStealingPool(int parallelism) {
+        return new ForkJoinPool
+            (parallelism,
+             ForkJoinPool.defaultForkJoinWorkerThreadFactory,
+             null, true);
+    }
+
+    //基于工作窃取原理的任务执行服务（fork-join） 线程数量等于cpu核数
+    public static ExecutorService newWorkStealingPool() {
+        return new ForkJoinPool
+            (Runtime.getRuntime().availableProcessors(),
+             ForkJoinPool.defaultForkJoinWorkerThreadFactory,
+             null, true);
+    }
+
+    //固定线程数量的执行服务
+    public static ExecutorService newFixedThreadPool(int nThreads, ThreadFactory threadFactory) {
+        return new ThreadPoolExecutor(nThreads, nThreads,
+                                      0L, TimeUnit.MILLISECONDS,
+                                      new LinkedBlockingQueue<Runnable>(),
+                                      threadFactory);
+    }
+
+    //单线程的任务执行服务
+    public static ExecutorService newSingleThreadExecutor() {
+        return new FinalizableDelegatedExecutorService
+            (new ThreadPoolExecutor(1, 1,
+                                    0L, TimeUnit.MILLISECONDS,
+                                    new LinkedBlockingQueue<Runnable>()));
+    }
+
+    //单线程的执行服务
+    public static ExecutorService newSingleThreadExecutor(ThreadFactory threadFactory) {
+        return new FinalizableDelegatedExecutorService
+            (new ThreadPoolExecutor(1, 1,
+                                    0L, TimeUnit.MILLISECONDS,
+                                    new LinkedBlockingQueue<Runnable>(),
+                                    threadFactory));
+    }
+
+   //工作线程带缓存的任务执行服务 只是最大数量设置为了Integer.MAX_VALUE，以及过期时间设置长了而已
+    public static ExecutorService newCachedThreadPool() {
+        return new ThreadPoolExecutor(0, Integer.MAX_VALUE,
+                                      60L, TimeUnit.SECONDS,
+                                      new SynchronousQueue<Runnable>());
+    }
+
+     //工作线程带缓存的任务执行服务 只是最大数量设置为了Integer.MAX_VALUE，以及过期时间设置长了而已
+    public static ExecutorService newCachedThreadPool(ThreadFactory threadFactory) {
+        return new ThreadPoolExecutor(0, Integer.MAX_VALUE,
+                                      60L, TimeUnit.SECONDS,
+                                      new SynchronousQueue<Runnable>(),
+                                      threadFactory);
+    }
+
+    //单线程的定时任务执行服务
+    public static ScheduledExecutorService newSingleThreadScheduledExecutor() {
+        return new DelegatedScheduledExecutorService
+            (new ScheduledThreadPoolExecutor(1));
+    }
+
+    //单线程的定时任务执行服务
+    public static ScheduledExecutorService newSingleThreadScheduledExecutor(ThreadFactory threadFactory) {
+        return new DelegatedScheduledExecutorService
+            (new ScheduledThreadPoolExecutor(1, threadFactory));
+    }
+
+    //定时任务执行服务
+    public static ScheduledExecutorService newScheduledThreadPool(int corePoolSize) {
+        return new ScheduledThreadPoolExecutor(corePoolSize);
+    }
+
+    //定时任务执行服务
+    public static ScheduledExecutorService newScheduledThreadPool(
+            int corePoolSize, ThreadFactory threadFactory) {
+        return new ScheduledThreadPoolExecutor(corePoolSize, threadFactory);
+    }
+    ......
+    }
+
+十一.用于批量任务执行管理的CompletionService和ExecutorCompletionService
+    CompletionService接口定义了一组带相同返回值的任务的管理接口,可以最快的获取这些批量任务的执行结果，ExecutorService.invokeAny就使用了这个技术！
+    源码如下：
+    public interface CompletionService<V> {
+	    //提交任务
+	    Future<V> submit(Callable<V> task);
+
+	    //提交任务
+	    Future<V> submit(Runnable task, V result);
+
+	    //获取一个执行结果（并移除） 阻塞
+	    Future<V> take() throws InterruptedException;
+
+	    //获取一个执行结果（并移除） 不阻塞
+	    Future<V> poll();
+
+	    //获取一个执行结果（并移除） 带超时
+	    Future<V> poll(long timeout, TimeUnit unit) throws InterruptedException;
+     }
+	ExecutorCompletionService类是CompletionService接口的实现
+	ExecutorCompletionService内部管理者一个已完成任务的阻塞队列，其引用了一个Executor用来执行任务，submit()方法最终会委托给内部的executor去执行任务，take/poll方法的工作都委托给内部的已完成任务阻塞队列
+    如果阻塞队列中有已完成的任务, take方法就返回任务的结果, 否则阻塞等待任务完成
+    源码如下：
+    public class ExecutorCompletionService<V> implements CompletionService<V> {
+            //被包装Executor
+		    private final Executor executor;
+		    //如果executor是AbstractExecutorService就为它
+		    private final AbstractExecutorService aes;
+		    //完成任务的阻塞队列
+		    private final BlockingQueue<Future<V>> completionQueue;
+
+		    /**
+		     * 扩展FutureTask，重写了其done方法用于将完成任务放置在阻塞队列！！！
+		     */
+		    private class QueueingFuture extends FutureTask<Void> {
+		        QueueingFuture(RunnableFuture<V> task) {
+		            super(task, null);
+		            this.task = task;
+		        }
+		        protected void done() { completionQueue.add(task); }
+		        private final Future<V> task;
+		    }
+
+		    private RunnableFuture<V> newTaskFor(Callable<V> task) {
+		        if (aes == null)
+		            return new FutureTask<V>(task);
+		        else
+		            return aes.newTaskFor(task);
+		    }
+
+		    private RunnableFuture<V> newTaskFor(Runnable task, V result) {
+		        if (aes == null)
+		            return new FutureTask<V>(task, result);
+		        else
+		            return aes.newTaskFor(task, result);
+		    }
+
+		    
+		    public ExecutorCompletionService(Executor executor) {
+		        if (executor == null)
+		            throw new NullPointerException();
+		        this.executor = executor;
+		        this.aes = (executor instanceof AbstractExecutorService) ?
+		            (AbstractExecutorService) executor : null;
+		        this.completionQueue = new LinkedBlockingQueue<Future<V>>();
+		    }
+
+		   
+		    public ExecutorCompletionService(Executor executor,
+		                                     BlockingQueue<Future<V>> completionQueue) {
+		        if (executor == null || completionQueue == null)
+		            throw new NullPointerException();
+		        this.executor = executor;
+		        this.aes = (executor instanceof AbstractExecutorService) ?
+		            (AbstractExecutorService) executor : null;
+		        this.completionQueue = completionQueue;
+		    }
+
+		    //提交任务
+		    public Future<V> submit(Callable<V> task) {
+		        if (task == null) throw new NullPointerException();
+		        RunnableFuture<V> f = newTaskFor(task);
+		        executor.execute(new QueueingFuture(f));
+		        return f;
+		    }
+
+		    //提交任务
+		    public Future<V> submit(Runnable task, V result) {
+		        if (task == null) throw new NullPointerException();
+		        RunnableFuture<V> f = newTaskFor(task, result);
+		        executor.execute(new QueueingFuture(f));
+		        return f;
+		    }
+
+		    //获取结果带阻塞
+		    public Future<V> take() throws InterruptedException {
+		        return completionQueue.take();
+		    }
+
+		     //获取结果
+		    public Future<V> poll() {
+		        return completionQueue.poll();
+		    }
+
+		    //获取结果 带超时
+		    public Future<V> poll(long timeout, TimeUnit unit)
+		            throws InterruptedException {
+		        return completionQueue.poll(timeout, unit);
+		    }
+
+		}
+       ExecutorCompletionService主要用与管理一组带相同返回结果类型的异步任务 (有结果的任务, 任务完成后要处理结果)
+       more:https://user.qzone.qq.com/834171100/blog/1516002218
