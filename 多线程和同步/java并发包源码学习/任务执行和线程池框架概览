@@ -132,7 +132,7 @@
     //当前任务所运行的线程，通过cas进行保护
     private volatile Thread runner;
 
-    //等待当前线程的运行节点
+    //等待当前线程运行结果的节点
     private volatile WaitNode waiters;
 
     //获取运行结果获抛出取消异常获抛出运行异常
@@ -177,7 +177,7 @@
               UNSAFE.compareAndSwapInt(this, stateOffset, NEW,
                   mayInterruptIfRunning ? INTERRUPTING : CANCELLED)))
             return false;
-        //如果要中断进行中断
+        //如果要中断则进行中断
         try {    // in case call to interrupt throws exception
             if (mayInterruptIfRunning) {
                 try {
@@ -354,7 +354,7 @@
         callable = null;        // to reduce footprint
     }
 
-    // //结束运行 依次唤醒等待get结果的节点 带超时机制
+    // 结束运行 依次唤醒等待get结果的节点 带超时机制
     private int awaitDone(boolean timed, long nanos)
         throws InterruptedException {
         final long deadline = timed ? System.nanoTime() + nanos : 0L;
@@ -415,6 +415,8 @@
             }
         }
     }
+
+
 
     // Unsafe 调用逻辑和本类相关字段的偏移位 cas和内存屏障需要
     private static final sun.misc.Unsafe UNSAFE;
@@ -666,6 +668,7 @@
 		        private final Future<V> task;
 		    }
 
+            //包装callable 
 		    private RunnableFuture<V> newTaskFor(Callable<V> task) {
 		        if (aes == null)
 		            return new FutureTask<V>(task);
@@ -673,6 +676,7 @@
 		            return aes.newTaskFor(task);
 		    }
 
+            //包装Runnable
 		    private RunnableFuture<V> newTaskFor(Runnable task, V result) {
 		        if (aes == null)
 		            return new FutureTask<V>(task, result);
